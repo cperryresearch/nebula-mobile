@@ -5,8 +5,15 @@ from pydantic import BaseModel, Field
 from openai import OpenAI
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional, Literal
+from supabase import create_client, Client
+from uuid import uuid4
 
 load_dotenv()
+
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
 api_key = os.getenv("OPENAI_API_KEY")
 if not api_key:
@@ -16,9 +23,45 @@ client = OpenAI(api_key=api_key)
 
 app = FastAPI(title="Nebula Backend", version="0.1.0")
 
+
+@app.get("/test-supabase")
+def test_supabase():
+    try:
+        result = supabase.table("messages").select("*").limit(1).execute()
+        return {"status": "success", "data": result.data}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+@app.post("/seed-message")
+def seed_message():
+    try:
+        conversation_id = str(uuid4())
+        payload = {
+            "user_id": "00000000-0000-0000-0000-000000000000",  # placeholder until auth
+            "conversation_id": conversation_id,
+            "role": "system",
+            "content": "seed test",
+            # created_at omitted -> DB default now()
+        }
+        res = supabase.table("messages").insert(payload).execute()
+        return {
+            "status": "inserted",
+            "conversation_id": conversation_id,
+            "data": res.data,
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=[
+        "http://localhost:5174",
+        "http://127.0.0.1:5174",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -32,12 +75,16 @@ class HistoryItem(BaseModel):
 
 class ChatRequest(BaseModel):
     user_id: str
+    conversation_id: Optional[str] = (
+        None  # NEW (frontend can pass this after first turn)
+    )
     message: str
     history: Optional[List[HistoryItem]] = None
 
 
 class ChatResponse(BaseModel):
     reply_text: str
+    conversation_id: str  # NEW (backend returns this)
 
 
 @app.get("/health")
@@ -47,6 +94,9 @@ def health():
 
 @app.post("/chat", response_model=ChatResponse)
 def chat(payload: ChatRequest):
+    # --- 1) establish conversation_id (create if first turn) ---
+    conversation_id = payload.conversation_id or str(uuid4())
+
     system = """You are Nebula, a calm and friendly digital companion.
 
 You may receive conversation context (recent messages). Use it naturally when it is present.
@@ -85,17 +135,32 @@ If the user asks “do you remember…”
 - If it does not appear, respond warmly and ask them to remind you (no disclaimers).
 """
 
-    # Build input: system + (optional) history + current message
+    # --- 2) Build input: system + (optional) history + current message ---
     input_messages = [{"role": "system", "content": system}]
 
     if payload.history:
-        # Keep it bounded (avoid huge payloads)
         for item in payload.history[-12:]:
-            # roles are already validated as "user" or "assistant"
             input_messages.append({"role": item.role, "content": item.content})
 
     input_messages.append({"role": "user", "content": payload.message})
 
+    # --- 3) Save USER message ---
+    try:
+        supabase.table("messages").insert(
+            {
+                "user_id": payload.user_id,
+                "conversation_id": conversation_id,
+                "role": "user",
+                "content": payload.message,
+                # created_at omitted -> DB default now()
+            }
+        ).execute()
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Supabase insert (user) failed: {str(e)}"
+        )
+
+    # --- 4) Call OpenAI ---
     try:
         resp = client.responses.create(
             model="gpt-4o-mini",
@@ -104,7 +169,7 @@ If the user asks “do you remember…”
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"OpenAI error: {str(e)}")
 
-    # pull text from Responses output
+    # --- 5) Extract assistant text (your existing logic, kept) ---
     reply_text = ""
     try:
         for item in resp.output or []:
@@ -116,4 +181,20 @@ If the user asks “do you remember…”
 
     reply_text = (reply_text or "").strip() or "I’m here. What’s on your mind?"
 
-    return ChatResponse(reply_text=reply_text)
+    # --- 6) Save ASSISTANT message ---
+    try:
+        supabase.table("messages").insert(
+            {
+                "user_id": payload.user_id,
+                "conversation_id": conversation_id,
+                "role": "assistant",
+                "content": reply_text,
+            }
+        ).execute()
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Supabase insert (assistant) failed: {str(e)}"
+        )
+
+    # --- 7) Return reply + conversation_id ---
+    return ChatResponse(reply_text=reply_text, conversation_id=conversation_id)
