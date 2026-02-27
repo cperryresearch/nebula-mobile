@@ -23,6 +23,27 @@ client = OpenAI(api_key=api_key)
 
 app = FastAPI(title="Nebula Backend", version="0.1.0")
 
+# --- CORS (dynamic from env) ---
+cors_origins_raw = os.getenv("CORS_ORIGINS", "")
+cors_origins = [o.strip() for o in cors_origins_raw.split(",") if o.strip()]
+
+# Fallback for local dev if env var is missing
+if not cors_origins:
+    cors_origins = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:5174",
+    ]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 @app.get("/test-supabase")
 def test_supabase():
@@ -52,28 +73,6 @@ def seed_message():
         }
     except Exception as e:
         return {"status": "error", "message": str(e)}
-
-
-# --- CORS (dynamic from env) ---
-cors_origins_raw = os.getenv("CORS_ORIGINS", "")
-cors_origins = [o.strip() for o in cors_origins_raw.split(",") if o.strip()]
-
-# Fallback for local dev if env var is missing
-if not cors_origins:
-    cors_origins = [
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:5174",
-        "http://127.0.0.1:5174",
-    ]
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=cors_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 
 class HistoryItem(BaseModel):
