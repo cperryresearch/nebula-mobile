@@ -54,21 +54,22 @@ def seed_message():
         return {"status": "error", "message": str(e)}
 
 
-# --- CORS ORIGINS: local dev + deployed domains ---
-raw_origins = os.getenv("CORS_ORIGINS", "")
-extra_origins = [o.strip() for o in raw_origins.split(",") if o.strip()]
+# --- CORS (dynamic from env) ---
+cors_origins_raw = os.getenv("CORS_ORIGINS", "")
+cors_origins = [o.strip() for o in cors_origins_raw.split(",") if o.strip()]
 
-allow_origins = [
-    "http://localhost:5174",
-    "http://127.0.0.1:5174",
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    *extra_origins,
-]
+# Fallback for local dev if env var is missing
+if not cors_origins:
+    cors_origins = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:5174",
+    ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allow_origins,
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
