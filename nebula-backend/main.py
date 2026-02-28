@@ -45,6 +45,11 @@ app.add_middleware(
 )
 
 
+@app.get("/")
+def root():
+    return {"status": "nebula-backend alive"}
+
+
 @app.get("/test-supabase")
 def test_supabase():
     try:
