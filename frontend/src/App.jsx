@@ -245,7 +245,7 @@ function App() {
       const token = sessionData?.session?.access_token;
 
       // Call backend
-      const res = await fetch("https://nebula-backend-ej6o.onrender.com/chat", {
+      const res = await fetch("https://nebula-backend-ej6e.onrender.com/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
