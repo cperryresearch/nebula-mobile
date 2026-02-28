@@ -45,9 +45,14 @@ app.add_middleware(
 )
 
 
-@app.get("/")
+@app.api_route("/", methods=["GET", "HEAD"])
 def root():
     return {"status": "nebula-backend alive"}
+
+
+@app.api_route("/health", methods=["GET", "HEAD"])
+def health():
+    return {"ok": True}
 
 
 @app.get("/test-supabase")
