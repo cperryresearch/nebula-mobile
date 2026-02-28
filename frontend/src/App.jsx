@@ -5,6 +5,12 @@ import talking from "./images/radiant.png";
 import blink from "./images/nebula_blink.png";
 import { supabase } from "./lib/supabaseClient";
 
+// ✅ Mobile-safe ID helper (crypto.randomUUID can be unavailable on non-HTTPS)
+const makeId = () =>
+  globalThis.crypto?.randomUUID
+    ? globalThis.crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
 function App() {
   // --- Ensure Supabase session (anonymous) on startup ---
   useEffect(() => {
@@ -112,7 +118,7 @@ function App() {
     if (!initialGreeting) return [];
     return [
       {
-        id: crypto.randomUUID(),
+        id: makeId(),
         role: "nebula",
         content: initialGreeting,
         ts: Date.now(),
@@ -202,7 +208,7 @@ function App() {
 
     setMessages([
       {
-        id: crypto.randomUUID(),
+        id: makeId(),
         role: "nebula",
         content: freshGreeting,
         ts: Date.now(),
@@ -224,7 +230,7 @@ function App() {
 
     // Push user message
     const userMsg = {
-      id: crypto.randomUUID(),
+      id: makeId(),
       role: "user",
       content: text,
       ts: Date.now(),
@@ -276,7 +282,7 @@ function App() {
       setTemporaryState("talking");
 
       const nebulaMsg = {
-        id: crypto.randomUUID(),
+        id: makeId(),
         role: "nebula",
         content: replyText,
         ts: Date.now(),
@@ -287,7 +293,7 @@ function App() {
       console.error("Chat error:", err);
 
       const nebulaMsg = {
-        id: crypto.randomUUID(),
+        id: makeId(),
         role: "nebula",
         content:
           "I felt a little cosmic turbulence… but I’m still here. Try again in a moment.",
