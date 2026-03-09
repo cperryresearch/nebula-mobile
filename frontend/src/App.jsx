@@ -568,6 +568,30 @@ useEffect(() => {
             opacity: 0;
           }
         }
+
+        @keyframes crystalGlowPulse {
+          0%,
+          100% {
+            opacity: 0.62;
+            transform: scaleX(1) scaleY(1);
+          }
+
+          50% {
+            opacity: 0.88;
+            transform: scaleX(1.04) scaleY(1.08);
+          }
+        }
+
+        @keyframes crystalShardPulse {
+          0%,
+          100% {
+            filter: brightness(1) saturate(1);
+          }
+
+          50% {
+            filter: brightness(1.16) saturate(1.12);
+          }
+        }
       `}</style>
 
       {/* centered single-column container */}
@@ -642,6 +666,15 @@ useEffect(() => {
        <div style={styles.mushroomRight}>
          <div style={styles.mushroomCapBlue} />
          <div style={styles.mushroomStemBlue} />
+      </div>
+
+      <div style={styles.crystalFieldGlow} />
+
+      <div style={styles.crystalCluster}>
+        <div style={styles.crystalTall} />
+        <div style={styles.crystalMid} />
+        <div style={styles.crystalSmall} />
+        <div style={styles.crystalTiny} />
       </div>
 
       <NebulaSprite />
@@ -874,6 +907,19 @@ ufoRightToLeft: {
   filter: "blur(2px)",
 },
 
+crystalFieldGlow: {
+  position: "absolute",
+  bottom: "8px",
+  right: "36px",
+  width: "90px",
+  height: "28px",
+  background: "radial-gradient(ellipse at center, rgba(110,255,210,0.28) 0%, rgba(110,255,210,0.12) 40%, rgba(110,255,210,0.05) 60%, transparent 75%)",
+  filter: "blur(6px)",
+  opacity: 0.75,
+  pointerEvents: "none",
+  animation: "crystalGlowPulse 7s ease-in-out infinite",
+},
+
 mushroomLeft: {
   position: "absolute",
   transformOrigin: "bottom center",
@@ -942,6 +988,64 @@ mushroomStemBlue: {
   background:
     "linear-gradient(to bottom, rgba(235,250,255,0.95), rgba(195,220,255,0.78))",
   boxShadow: "0 0 8px rgba(180,220,255,0.20)",
+},
+
+crystalCluster: {
+  position: "absolute",
+  bottom: "14px",
+  right: "44px",
+  width: "52px",
+  height: "52px",
+  pointerEvents: "none"
+},
+
+crystalTall: {
+  position: "absolute",
+  bottom: "0",
+  left: "16px",
+  width: "13px",
+  height: "36px",
+  background: "linear-gradient(155deg, rgba(230,255,248,0.98) 0%, rgba(90,255,210,0.88) 40%, rgba(30,190,165,0.65) 100%)",
+  clipPath: "polygon(50% 0%, 100% 28%, 85% 100%, 15% 100%, 0% 28%)",
+  boxShadow: "0 0 12px rgba(80,255,205,0.65), 0 0 22px rgba(80,255,205,0.2)",
+  filter: "brightness(1.08)",
+  animation: "crystalShardPulse 6.5s ease-in-out infinite",
+},
+
+crystalMid: {
+  position: "absolute",
+  bottom: "0",
+  left: "2px",
+  width: "10px",
+  height: "25px",
+  background: "linear-gradient(165deg, rgba(210,255,245,0.93) 0%, rgba(110,245,220,0.78) 48%, rgba(50,195,175,0.5) 100%)",
+  clipPath: "polygon(50% 0%, 100% 30%, 82% 100%, 18% 100%, 0% 30%)",
+  boxShadow: "0 0 9px rgba(100,245,215,0.55)",
+  animation: "crystalShardPulse 6.5s ease-in-out infinite",
+},
+
+crystalSmall: {
+  position: "absolute",
+  bottom: "0",
+  left: "31px",
+  width: "8px",
+  height: "20px",
+  background: "linear-gradient(150deg, rgba(220,255,248,0.9) 0%, rgba(130,250,228,0.72) 52%, rgba(60,200,182,0.45) 100%)",
+  clipPath: "polygon(50% 0%, 100% 32%, 80% 100%, 20% 100%, 0% 32%)",
+  boxShadow: "0 0 7px rgba(110,248,225,0.48)",
+  animation: "crystalShardPulse 6.5s ease-in-out infinite",
+},
+
+crystalTiny: {
+  position: "absolute",
+  bottom: "0",
+  left: "40px",
+  width: "6px",
+  height: "13px",
+  background: "linear-gradient(160deg, rgba(200,255,245,0.85) 0%, rgba(120,240,218,0.65) 55%, rgba(55,185,168,0.38) 100%)",
+  clipPath: "polygon(50% 0%, 100% 30%, 78% 100%, 22% 100%, 0% 30%)",
+  boxShadow: "0 0 5px rgba(100,238,218,0.4)",
+  animation: "crystalShardPulse 6.5s ease-in-out infinite",
 },
 
   stage: {
