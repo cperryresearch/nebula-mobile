@@ -4,6 +4,8 @@ import thinking from "./images/cosmic-map.png";
 import talking from "./images/radiant.png";
 import blink from "./images/nebula_blink.png";
 import { supabase } from "./lib/supabaseClient";
+import NebulaSprite from "./components/NebulaSprite";
+import ufo from "./assets/sprites/ufo.png";
 
 // ✅ Mobile-safe ID helper (crypto.randomUUID can be unavailable on non-HTTPS)
 const makeId = () =>
@@ -45,6 +47,9 @@ function App() {
 
   // --- Blink loop ---
   const [blinkOn, setBlinkOn] = useState(false);
+  const [shootingStarData, setShootingStarData] = useState(null);
+  const [ufoVisible, setUfoVisible] = useState(false);
+  const [ufoDirection, setUfoDirection] = useState("left");
   const startedRef = useRef(false);
   const t1Ref = useRef(null);
   const t2Ref = useRef(null);
@@ -183,6 +188,84 @@ function App() {
     () => message.trim().length > 0 && !loading,
     [message, loading]
   );
+
+useEffect(() => {
+  const starVariants = [
+    {
+      key: "downRight",
+      top: "8%",
+      left: "6%",
+    },
+    {
+      key: "downRight",
+      top: "18%",
+      left: "14%",
+    },
+    {
+      key: "downLeft",
+      top: "10%",
+      right: "8%",
+    },
+    {
+      key: "downLeft",
+      top: "22%",
+      right: "14%",
+    },
+    {
+      key: "upRight",
+      bottom: "26%",
+      left: "8%",
+    },
+    {
+      key: "upRight",
+      bottom: "16%",
+      left: "18%",
+    },
+    {
+      key: "upLeft",
+      bottom: "24%",
+      right: "8%",
+    },
+    {
+      key: "upLeft",
+      bottom: "14%",
+      right: "18%",
+    },
+  ];
+
+  const interval = setInterval(() => {
+    const chance = Math.random();
+
+    // overall sky event chance
+    if (chance < 0.5) {
+      const eventRoll = Math.random();
+
+      if (eventRoll < 0.78) {
+        // shooting star
+        const variant =
+          starVariants[Math.floor(Math.random() * starVariants.length)];
+
+        setShootingStarData(variant);
+
+        setTimeout(() => {
+          setShootingStarData(null);
+        }, 1200);
+      } else {
+        // UFO event
+        const dirRoll = Math.random();
+        setUfoDirection(dirRoll < 0.5 ? "left" : "right");
+
+        setUfoVisible(true);
+
+        setTimeout(() => {
+          setUfoVisible(false);
+        }, 7000);
+      }
+    }
+  }, 4600); // moderate demo timing
+
+  return () => clearInterval(interval);
+}, []);
 
   // ---- MEMORY HELPER ----
   const buildHistoryPayload = (msgs, limit = 12) => {
@@ -328,6 +411,163 @@ function App() {
           0%, 100% { filter: drop-shadow(0 0 8px rgba(170,120,255,0.25)); }
           50% { filter: drop-shadow(0 0 18px rgba(170,120,255,0.6)); }
         }
+
+        @keyframes sparkleTwinkle {
+          0%   { opacity: 0.25; }
+          50%  { opacity: 0.9; }
+          100% { opacity: 0.25; }
+        }
+
+        @keyframes sparkleTwinkleSlow {
+          0%   { opacity: 0.18; }
+          50%  { opacity: 0.55; }
+          100% { opacity: 0.18; }
+        }
+
+        @keyframes sparkleTwinkleFast {
+          0%   { opacity: 0.22; }
+          50%  { opacity: 1; }
+          100% { opacity: 0.22; }
+        }
+
+        @keyframes mushroomSwayLeft {
+          0%   { transform: rotate(-2deg) translateY(0px); }
+          50%  { transform: rotate(2deg) translateY(-1px); }
+          100% { transform: rotate(-2deg) translateY(0px); }
+        }
+
+        @keyframes mushroomSwayRight {
+          0%   { transform: rotate(2deg) translateY(0px); }
+          50%  { transform: rotate(-2deg) translateY(-1px); }
+          100% { transform: rotate(2deg) translateY(0px); }
+        }
+
+        @keyframes planetGlowBreath {
+          0% {
+            opacity: 0.92;
+            filter: blur(2px) brightness(0.95);
+        }
+        50% {
+           opacity: 1;
+           filter: blur(3px) brightness(1.18);
+        }
+        100% {
+           opacity: 0.92;
+           filter: blur(2px) brightness(0.95);
+        }
+      }
+
+        @keyframes shootingStarDownRight {
+          0% {
+            opacity: 0;
+            transform: translate(0px, 0px) rotate(32deg) scale(0.85);
+          }
+
+          10% {
+            opacity: 1;
+          }
+
+          80% {
+            opacity: 1;
+          }
+
+          100% {
+            opacity: 0;
+            transform: translate(140px, 180px) rotate(32deg) scale(1);
+          }
+        }
+
+        @keyframes shootingStarDownLeft {
+          0% {
+            opacity: 0;
+            transform: translate(0px, 0px) rotate(-32deg) scale(0.85);
+          }
+
+          10% {
+            opacity: 1;
+          }
+
+          80% {
+            opacity: 1;
+          }
+
+          100% {
+            opacity: 0;
+            transform: translate(-140px, 180px) rotate(-32deg) scale(1);
+          }
+        }
+
+        @keyframes shootingStarUpRight {
+          0% {
+            opacity: 0;
+            transform: translate(0px, 0px) rotate(-32deg) scale(0.85);
+          }
+
+          10% {
+            opacity: 1;
+          }
+
+          80% {
+            opacity: 1;
+          }
+
+          100% {
+            opacity: 0;
+            transform: translate(140px, -180px) rotate(-32deg) scale(1);
+          }
+        }
+
+        @keyframes shootingStarUpLeft {
+          0% {
+            opacity: 0;
+            transform: translate(0px, 0px) rotate(32deg) scale(0.85);
+          }
+
+          10% {
+            opacity: 1;
+          }
+
+          80% {
+            opacity: 1;
+          }
+
+          100% {
+            opacity: 0;
+            transform: translate(-140px, -180px) rotate(32deg) scale(1);
+          }
+        }
+
+                @keyframes ufoDriftRight {
+          0% {
+            transform: translate(-60px, 0px);
+            opacity: 0;
+          }
+
+          10% {
+            opacity: 1;
+          }
+
+          100% {
+            transform: translate(420px, 0px);
+            opacity: 0;
+          }
+        }
+
+        @keyframes ufoDriftLeft {
+          0% {
+            transform: translate(420px, 0px);
+            opacity: 0;
+          }
+
+          10% {
+            opacity: 1;
+          }
+
+          100% {
+            transform: translate(-60px, 0px);
+            opacity: 0;
+          }
+        }
       `}</style>
 
       {/* centered single-column container */}
@@ -351,20 +591,61 @@ function App() {
           </header>
 
           {/* STAGE (Phase 2.1) */}
-          <div style={styles.stage}>
-            <div style={styles.stageGlow} />
-
-            <img
-              src={blinkOn ? spriteMap["blink"] : spriteMap[nebulaState]}
-              alt="Nebula"
-              draggable={false}
+        <div style={styles.stage}>
+          <div style={styles.stageGlow} />
+          <div style={styles.sparklesBack} />
+          <div style={styles.sparklesMid} />
+          <div style={styles.sparklesFront} />
+          
+          {shootingStarData && (
+            <div
               style={{
-                ...styles.sprite,
-                ...(loading ? styles.spriteThinking : styles.spriteIdle),
-                ...(bounceOn ? styles.spriteBounce : null),
-              }}
+                ...styles.shootingStar,
+                ...(shootingStarData.top ? { top: shootingStarData.top } : {}),
+                ...(shootingStarData.left ? { left: shootingStarData.left } : {}),
+                ...(shootingStarData.right ? { right: shootingStarData.right } : {}),
+                ...(shootingStarData.bottom ? { bottom: shootingStarData.bottom } : {}),
+                ...(shootingStarData.key === "downRight"
+                  ? styles.shootingStarDownRight
+                  : {}),
+                ...(shootingStarData.key === "downLeft"
+                  ? styles.shootingStarDownLeft
+                  : {}),
+                ...(shootingStarData.key === "upRight"
+                  ? styles.shootingStarUpRight
+                  : {}),
+                ...(shootingStarData.key === "upLeft"
+                  ? styles.shootingStarUpLeft
+                  : {}),
+               }}
+             />
+           )}
+
+          {ufoVisible && (
+            <img
+              src={ufo}
+              style={{
+                ...styles.ufo,
+                ...(ufoDirection === "left"
+                  ? styles.ufoLeftToRight
+                  : styles.ufoRightToLeft)
+             }}
             />
-          </div>
+          )}
+          <div style={styles.planetGround} />
+
+          <div style={styles.mushroomLeft}>
+          <div style={styles.mushroomCapPink} />
+          <div style={styles.mushroomStemPink} />
+       </div>
+
+       <div style={styles.mushroomRight}>
+         <div style={styles.mushroomCapBlue} />
+         <div style={styles.mushroomStemBlue} />
+      </div>
+
+      <NebulaSprite />
+    </div>
 
           <div ref={listRef} style={styles.chatList}>
             {messages.map((m) => (
@@ -504,17 +785,177 @@ const styles = {
     fontSize: 13,
   },
 
+  sparklesBack: {
+  position: "absolute",
+  inset: 0,
+  pointerEvents: "none",
+  animation: "sparkleTwinkleSlow 4.6s ease-in-out infinite",
+  opacity: 0.45,
+  backgroundImage:
+    "radial-gradient(1.5px 1.5px at 18% 28%, rgba(255,255,255,0.45), transparent),\
+     radial-gradient(1.5px 1.5px at 76% 24%, rgba(180,220,255,0.40), transparent),\
+     radial-gradient(1px 1px at 62% 58%, rgba(255,255,255,0.35), transparent),\
+     radial-gradient(1px 1px at 28% 68%, rgba(210,190,255,0.35), transparent)",
+},
+
+sparklesMid: {
+  position: "absolute",
+  inset: 0,
+  pointerEvents: "none",
+  animation: "sparkleTwinkle 2.8s ease-in-out infinite",
+  opacity: 0.75,
+  backgroundImage:
+    "radial-gradient(2px 2px at 20% 30%, rgba(255,255,255,0.75), transparent),\
+     radial-gradient(2px 2px at 70% 60%, rgba(255,255,255,0.65), transparent),\
+     radial-gradient(1.5px 1.5px at 50% 20%, rgba(255,255,255,0.85), transparent),\
+     radial-gradient(1.5px 1.5px at 30% 80%, rgba(255,255,255,0.55), transparent)",
+},
+
+sparklesFront: {
+  position: "absolute",
+  inset: 0,
+  pointerEvents: "none",
+  animation: "sparkleTwinkleFast 1.9s ease-in-out infinite",
+  opacity: 0.9,
+  backgroundImage:
+    "radial-gradient(2px 2px at 36% 22%, rgba(255,210,255,0.9), transparent),\
+     radial-gradient(2px 2px at 64% 34%, rgba(190,230,255,0.9), transparent),\
+     radial-gradient(1.5px 1.5px at 24% 52%, rgba(255,255,255,0.85), transparent),\
+     radial-gradient(1.5px 1.5px at 78% 72%, rgba(220,200,255,0.8), transparent)",
+},
+
+shootingStar: {
+  position: "absolute",
+  top: "12%",
+  left: "12%",
+  width: "40px",
+  height: "2px",
+  borderRadius: "2px",
+
+  background:
+    "linear-gradient(90deg, rgba(255,255,255,0.9), rgba(255,255,255,0.2), transparent)",
+
+  boxShadow: "0 0 8px rgba(255,255,255,0.8)",
+
+  pointerEvents: "none",
+  transform: "rotate(32deg)",
+  transformOrigin: "left center",
+
+  animation: "shootingStar 1.2s ease-out forwards",
+},
+
+ufo: {
+  position: "absolute",
+  top: "20%",
+  width: "36px",
+  imageRendering: "pixelated",
+  pointerEvents: "none",
+  opacity: 0.9,
+},
+
+ufoLeftToRight: {
+  animation: "ufoDriftRight 7s linear forwards",
+},
+
+ufoRightToLeft: {
+  animation: "ufoDriftLeft 7s linear forwards",
+},
+
+  planetGround: {
+  position: "absolute",
+  transformOrigin: "center center",
+  animation: "planetGlowBreath 7.8s ease-in-out infinite",
+  bottom: "-40px",
+  width: "120%",
+  height: "120px",
+  borderRadius: "50%",
+  background:
+    "radial-gradient(circle at 50% 20%, rgba(120,180,255,0.35), rgba(60,120,255,0.25), rgba(0,0,0,0.9) 80%)",
+  filter: "blur(2px)",
+},
+
+mushroomLeft: {
+  position: "absolute",
+  transformOrigin: "bottom center",
+  animation: "mushroomSwayLeft 4.2s ease-in-out infinite",
+  bottom: "34px",
+  left: "21%",
+  width: "24px",
+  height: "34px",
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  justifyContent: "flex-end",
+  pointerEvents: "none",
+},
+
+mushroomRight: {
+  position: "absolute",
+  transformOrigin: "bottom center",
+  animation: "mushroomSwayRight 4.8s ease-in-out infinite",
+  bottom: "33px",
+  right: "19%",
+  width: "22px",
+  height: "32px",
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  justifyContent: "flex-end",
+  pointerEvents: "none",
+},
+
+mushroomCapPink: {
+  width: "20px",
+  height: "14px",
+  borderRadius: "55% 55% 45% 45%",
+  background:
+    "radial-gradient(circle at 50% 30%, rgba(255,190,235,0.98), rgba(220,110,220,0.9) 58%, rgba(90,45,145,0.92) 100%)",
+  boxShadow:
+    "0 0 10px rgba(255,170,240,0.65), 0 0 22px rgba(160,90,255,0.35)",
+  marginBottom: "-1px",
+},
+
+mushroomStemPink: {
+  width: "7px",
+  height: "16px",
+  borderRadius: "5px",
+  background:
+    "linear-gradient(to bottom, rgba(255,240,250,0.95), rgba(220,205,255,0.78))",
+  boxShadow: "0 0 8px rgba(255,220,255,0.22)",
+},
+
+mushroomCapBlue: {
+  width: "18px",
+  height: "13px",
+  borderRadius: "55% 55% 45% 45%",
+  background:
+    "radial-gradient(circle at 50% 30%, rgba(190,240,255,0.98), rgba(100,170,255,0.9) 58%, rgba(45,70,150,0.92) 100%)",
+  boxShadow:
+    "0 0 10px rgba(140,220,255,0.6), 0 0 20px rgba(90,120,255,0.35)",
+  marginBottom: "-1px",
+},
+
+mushroomStemBlue: {
+  width: "6px",
+  height: "15px",
+  borderRadius: "5px",
+  background:
+    "linear-gradient(to bottom, rgba(235,250,255,0.95), rgba(195,220,255,0.78))",
+  boxShadow: "0 0 8px rgba(180,220,255,0.20)",
+},
+
   stage: {
     width: "100%",
-    maxWidth: 520,
+    maxWidth: 360,
     height: 360,
     margin: "16px auto 12px",
-    borderRadius: 20,
+    borderRadius: "50%",
     position: "relative",
     display: "grid",
     placeItems: "center",
     overflow: "hidden",
     border: "1px solid rgba(255,255,255,0.08)",
+    boxShadow: "0 0 60px rgba(150,120,255,0.35)",
     background:
       "radial-gradient(circle at 50% 35%, rgba(140,90,255,0.20), rgba(0,0,0,0) 60%)",
   },
