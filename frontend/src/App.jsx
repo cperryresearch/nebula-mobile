@@ -1,8 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import curious from "./images/curious.png";
-import thinking from "./images/cosmic-map.png";
-import talking from "./images/radiant.png";
-import blink from "./images/nebula_blink.png";
 import { supabase } from "./lib/supabaseClient";
 import NebulaSprite from "./components/NebulaSprite";
 import ufo from "./assets/sprites/ufo.png";
@@ -37,13 +33,6 @@ function App() {
 
   const [message, setMessage] = useState("");
   const [nebulaState, setNebulaState] = useState("idle");
-
-  const spriteMap = {
-    idle: curious,
-    thinking: thinking,
-    talking: talking,
-    blink: blink,
-  };
 
 // --- Blink loop ---
 const [blinkOn, setBlinkOn] = useState(false);
@@ -109,6 +98,8 @@ useEffect(() => {
 }, [spriteBehavior, walkDirection, isTurning]);
 
 useEffect(() => {
+  if (isTurning) return;
+
   const timeout = window.setTimeout(() => {
     setSpriteBehavior((prev) => (prev === "idle" ? "walk" : "idle"));
   }, spriteBehavior === "idle" ? 2200 : 3200);
@@ -116,7 +107,7 @@ useEffect(() => {
   return () => {
     window.clearTimeout(timeout);
   };
-}, [spriteBehavior]);
+}, [spriteBehavior, isTurning]);
 
   // --- Bounce ---
   const [bounceOn, setBounceOn] = useState(false);
@@ -352,13 +343,27 @@ useEffect(() => {
     setMessage("");
     setLoading(true);
 
-    try {
-      // Get Supabase session token (if available)
-      const { data: sessionData, error: sessionErr } =
-        await supabase.auth.getSession();
-      if (sessionErr) console.log("getSession error:", sessionErr);
+try {
 
-      const token = sessionData?.session?.access_token;
+  let { data: sessionData, error: sessionErr } =
+    await supabase.auth.getSession();
+
+  if (sessionErr) {
+    console.log("getSession error:", sessionErr);
+  }
+
+  if (!sessionData?.session) {
+    const { data: anonData, error: anonErr } =
+      await supabase.auth.signInAnonymously();
+
+    if (anonErr) {
+      console.log("Anon sign-in error:", anonErr);
+    }
+
+    sessionData = anonData;
+  }
+
+  const token = sessionData?.session?.access_token;
 
       // Call backend
       const res = await fetch("https://nebula-backend-ej6e.onrender.com/chat", {
@@ -368,7 +373,7 @@ useEffect(() => {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
-          user_id: sessionData?.session?.user?.id,
+          user_id: sessionData?.session?.user?.id || "00000000-0000-0000-0000-000000000000",
           conversation_id: conversationId, // ✅ persists thread
           message: text,
           history: history,
@@ -727,7 +732,7 @@ useEffect(() => {
             <div style={styles.headerRow}>
               <div>
                 <h1 style={styles.title}>Nebula</h1>
-                <div style={styles.subtitle}>Mobile • Phase 2: Experience</div>
+                <div style={styles.subtitle}>Mobile • Phase 2: Experience v2</div>
               </div>
 
               <button
