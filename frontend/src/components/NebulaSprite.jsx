@@ -9,7 +9,7 @@ const idleFrames = [idleLeft];
 const blinkFrames = [blinkLeft];
 const walkFrames = [walkLeft1, walkLeft2];
 
-export default function NebulaSprite({ blinkOn, behavior = "idle" }) {
+export default function NebulaSprite({ blinkOn, behavior = "idle", x = 0 }) {
   const [frameIndex, setFrameIndex] = useState(0);
 
   const activeFrames = blinkOn
@@ -27,7 +27,7 @@ export default function NebulaSprite({ blinkOn, behavior = "idle" }) {
 
     const interval = setInterval(() => {
       setFrameIndex((prev) => (prev + 1) % walkFrames.length);
-    }, 480);
+    }, 260);
 
     return () => {
       clearInterval(interval);
@@ -41,7 +41,7 @@ export default function NebulaSprite({ blinkOn, behavior = "idle" }) {
       style={{
         width: "144px",
         imageRendering: "pixelated",
-        transform: "translateY(40px)",
+        transform: `translateX(${x}px) translateY(40px) scaleX(${x < 0 ? -1 : 1})`,
       }}
     />
   );

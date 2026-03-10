@@ -51,6 +51,9 @@ const [shootingStarData, setShootingStarData] = useState(null);
 const [ufoVisible, setUfoVisible] = useState(false);
 const [ufoDirection, setUfoDirection] = useState("left");
 
+const [nebulaX, setNebulaX] = useState(0);
+const [walkDirection, setWalkDirection] = useState(1);
+
 useEffect(() => {
   const interval = window.setInterval(() => {
     setBlinkOn(true);
@@ -64,6 +67,28 @@ useEffect(() => {
     window.clearInterval(interval);
   };
 }, []);
+
+useEffect(() => {
+  const interval = setInterval(() => {
+    setNebulaX((prev) => {
+      let next = prev + walkDirection * 4;
+
+      if (next > 80) {
+        setWalkDirection(-1);
+        next = 80;
+      }
+
+      if (next < -80) {
+        setWalkDirection(1);
+        next = -80;
+      }
+
+      return next;
+    });
+  }, 120);
+
+  return () => clearInterval(interval);
+}, [walkDirection]);
 
   // --- Bounce ---
   const [bounceOn, setBounceOn] = useState(false);
@@ -651,7 +676,7 @@ useEffect(() => {
         <div style={styles.crystalTiny} />
       </div>
 
-      <NebulaSprite blinkOn={blinkOn} behavior="idle" />
+      <NebulaSprite blinkOn={blinkOn} behavior="walk" x={nebulaX} />
     </div>
 
           <div ref={listRef} style={styles.chatList}>
