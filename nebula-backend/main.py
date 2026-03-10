@@ -31,6 +31,7 @@ cors_origins = [o.strip() for o in cors_origins_raw.split(",") if o.strip()]
 if not cors_origins:
     cors_origins = [
         "http://localhost",
+        "https://localhost",
         "capacitor://localhost",
         "http://localhost:5173",
         "http://127.0.0.1:5173",
