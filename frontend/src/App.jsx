@@ -54,6 +54,7 @@ const [ufoDirection, setUfoDirection] = useState("left");
 const [nebulaX, setNebulaX] = useState(0);
 const [walkDirection, setWalkDirection] = useState(1);
 const [spriteBehavior, setSpriteBehavior] = useState("idle");
+const [isTurning, setIsTurning] = useState(false);
 
 useEffect(() => {
   const interval = window.setInterval(() => {
@@ -70,28 +71,42 @@ useEffect(() => {
 }, []);
 
 useEffect(() => {
-  if (spriteBehavior !== "walk") return;
+  if (spriteBehavior !== "walk" || isTurning) return;
 
-  const interval = setInterval(() => {
+  const interval = window.setInterval(() => {
     setNebulaX((prev) => {
       let next = prev + walkDirection * 4;
 
-      if (next > 80) {
-        setWalkDirection(-1);
+      if (next >= 80) {
         next = 80;
+        setIsTurning(true);
+        setSpriteBehavior("idle");
+
+        window.setTimeout(() => {
+          setWalkDirection(-1);
+          setSpriteBehavior("walk");
+          setIsTurning(false);
+        }, 550);
       }
 
-      if (next < -80) {
-        setWalkDirection(1);
+      if (next <= -80) {
         next = -80;
+        setIsTurning(true);
+        setSpriteBehavior("idle");
+
+        window.setTimeout(() => {
+          setWalkDirection(1);
+          setSpriteBehavior("walk");
+          setIsTurning(false);
+        }, 550);
       }
 
       return next;
     });
   }, 120);
 
-  return () => clearInterval(interval);
-}, [spriteBehavior, walkDirection]);
+  return () => window.clearInterval(interval);
+}, [spriteBehavior, walkDirection, isTurning]);
 
 useEffect(() => {
   const timeout = window.setTimeout(() => {
@@ -468,7 +483,106 @@ useEffect(() => {
            filter: blur(2px) brightness(0.95);
         }
       }
+        
+        @keyframes cloudFloatOne {
+          0% {
+          transform: translateX(0px) translateY(0px) scale(1);
+          opacity: 0.34;
+        }
+          50% {
+          transform: translateX(10px) translateY(-6px) scale(1.06);
+          opacity: 0.5;
+        }
+          100% {
+          transform: translateX(0px) translateY(0px) scale(1);
+          opacity: 0.34;
+        } 
+      }
 
+       @keyframes cloudFloatTwo {
+          0% {
+          transform: translateX(0px) translateY(0px) scale(1);
+          opacity: 0.28;
+        }
+          50% {
+          transform: translateX(-12px) translateY(4px) scale(1.08);
+          opacity: 0.44;
+        }
+          100% {
+          transform: translateX(0px) translateY(0px) scale(1);
+          opacity: 0.28;
+        }
+      }
+
+        @keyframes cloudFloatThree {
+          0% {
+          transform: translateX(0px) translateY(0px) scale(1);
+          opacity: 0.22;
+        }
+          50% {
+          transform: translateX(8px) translateY(8px) scale(1.05);
+          opacity: 0.36;
+        }
+          100% {
+          transform: translateX(0px) translateY(0px) scale(1);
+          opacity: 0.22;
+        }
+      }
+
+        @keyframes auroraCurtainOne {
+          0% {
+            transform: rotate(-7deg) translateX(0px) translateY(0px) scaleX(1) scaleY(1);
+            opacity: 0.72;
+          }
+
+          25% {
+            transform: rotate(-6deg) translateX(8px) translateY(-3px) scaleX(1.01) scaleY(1.05);
+            opacity: 0.86;
+          }
+
+          50% {
+            transform: rotate(-5deg) translateX(16px) translateY(-8px) scaleX(1.03) scaleY(1.10);
+            opacity: 0.94;
+          }
+
+          75% {
+            transform: rotate(-6deg) translateX(10px) translateY(-4px) scaleX(1.02) scaleY(1.04);
+            opacity: 0.88;
+          }
+
+          100% {
+            transform: rotate(-7deg) translateX(0px) translateY(0px) scaleX(1) scaleY(1);
+            opacity: 0.72;
+          }
+        }
+
+        @keyframes auroraCurtainTwo {
+          0% {
+            transform: rotate(5deg) translateX(0px) translateY(0px) scaleX(1) scaleY(1);
+            opacity: 0.46;
+          }
+
+          25% {
+            transform: rotate(6deg) translateX(-6px) translateY(-2px) scaleX(1.01) scaleY(1.04);
+            opacity: 0.58;
+          }
+
+          50% {
+            transform: rotate(7deg) translateX(-12px) translateY(-5px) scaleX(1.02) scaleY(1.08);
+            opacity: 0.70;
+          }
+
+          75% {
+            transform: rotate(6deg) translateX(-7px) translateY(-3px) scaleX(1.01) scaleY(1.05);
+            opacity: 0.60;
+          }
+
+          100% {
+            transform: rotate(5deg) translateX(0px) translateY(0px) scaleX(1) scaleY(1);
+            opacity: 0.46;
+          }
+        }
+          
         @keyframes shootingStarDownRight {
           0% {
             opacity: 0;
@@ -549,7 +663,7 @@ useEffect(() => {
           }
         }
 
-                @keyframes ufoDriftRight {
+        @keyframes ufoDriftRight {
           0% {
             transform: translate(-60px, 0px);
             opacity: 0;
@@ -627,11 +741,17 @@ useEffect(() => {
           </header>
 
           {/* STAGE (Phase 2.1) */}
-        <div style={styles.stage}>
-          <div style={styles.stageGlow} />
-          <div style={styles.sparklesBack} />
-          <div style={styles.sparklesMid} />
-          <div style={styles.sparklesFront} />
+          <div style={styles.stage}>
+            <div style={styles.auroraVeilOne} />
+            <div style={styles.auroraVeilTwo} />
+            <div style={styles.stageGlow} />
+        
+            <div style={styles.cloudOne} />
+            <div style={styles.cloudTwo} />
+            <div style={styles.cloudThree} />
+            <div style={styles.sparklesBack} />
+            <div style={styles.sparklesMid} />
+            <div style={styles.sparklesFront} />
           
           {shootingStarData && (
             <div
@@ -838,6 +958,7 @@ const styles = {
   sparklesBack: {
   position: "absolute",
   inset: 0,
+  zIndex: 2,
   pointerEvents: "none",
   animation: "sparkleTwinkleSlow 4.6s ease-in-out infinite",
   opacity: 0.45,
@@ -851,6 +972,7 @@ const styles = {
 sparklesMid: {
   position: "absolute",
   inset: 0,
+  zIndex: 3,
   pointerEvents: "none",
   animation: "sparkleTwinkle 2.8s ease-in-out infinite",
   opacity: 0.75,
@@ -864,6 +986,7 @@ sparklesMid: {
 sparklesFront: {
   position: "absolute",
   inset: 0,
+  zIndex: 4,
   pointerEvents: "none",
   animation: "sparkleTwinkleFast 1.9s ease-in-out infinite",
   opacity: 0.9,
@@ -1067,8 +1190,8 @@ crystalTiny: {
 
   stage: {
     width: "100%",
-    maxWidth: 360,
-    height: 360,
+    maxWidth: 320,
+    height: 320,
     margin: "16px auto 12px",
     borderRadius: "50%",
     position: "relative",
@@ -1078,16 +1201,146 @@ crystalTiny: {
     border: "1px solid rgba(255,255,255,0.08)",
     boxShadow: "0 0 60px rgba(150,120,255,0.35)",
     background:
-      "radial-gradient(circle at 50% 35%, rgba(140,90,255,0.20), rgba(0,0,0,0) 60%)",
+        "radial-gradient(circle at 50% 35%, rgba(140,90,255,0.12), rgba(0,0,0,0) 62%)",
   },
 
   stageGlow: {
     position: "absolute",
     inset: 0,
     pointerEvents: "none",
+    zIndex: 1,
     background:
-      "radial-gradient(circle at 50% 40%, rgba(170,120,255,0.18), rgba(0,0,0,0) 55%)",
+      "radial-gradient(circle at 50% 40%, rgba(170,120,255,0.24), rgba(0,0,0,0) 55%)",
     filter: "blur(0px)",
+  },
+
+auroraVeilOne: {
+  position: "absolute",
+  top: "6%",
+  left: "-32%",
+  width: "205%",
+  height: "118px",
+  pointerEvents: "none",
+  zIndex: 0,
+  opacity: 0.82,
+  transform: "rotate(-7deg)",
+  transformOrigin: "center center",
+  background: `
+    linear-gradient(
+      180deg,
+      transparent 0%,
+      rgba(120, 255, 220, 0.08) 8%,
+      rgba(120, 255, 220, 0.26) 24%,
+      rgba(180, 150, 255, 0.28) 46%,
+      rgba(120, 210, 255, 0.18) 66%,
+      rgba(120, 255, 220, 0.06) 84%,
+      transparent 100%
+    ),
+    repeating-linear-gradient(
+      92deg,
+      transparent 0px,
+      rgba(120, 255, 220, 0.00) 14px,
+      rgba(120, 255, 220, 0.05) 28px,
+      rgba(180, 150, 255, 0.07) 46px,
+      rgba(255, 255, 255, 0.025) 62px,
+      rgba(120, 210, 255, 0.045) 82px,
+      rgba(120, 255, 220, 0.00) 108px
+    )
+  `,
+  filter: "blur(2px) brightness(1.06)",
+  animation: "auroraCurtainOne 20s ease-in-out infinite",
+},
+
+auroraVeilTwo: {
+  position: "absolute",
+  top: "13%",
+  left: "-26%",
+  width: "190%",
+  height: "96px",
+  pointerEvents: "none",
+  zIndex: 0,
+  opacity: 0.62,
+  transform: "rotate(5deg)",
+  transformOrigin: "center center",
+  background: `
+    linear-gradient(
+      180deg,
+      transparent 0%,
+      rgba(255, 170, 230, 0.08) 10%,
+      rgba(160, 220, 255, 0.18) 30%,
+      rgba(120, 255, 220, 0.20) 52%,
+      rgba(180, 150, 255, 0.14) 74%,
+      transparent 100%
+    ),
+    repeating-linear-gradient(
+      88deg,
+      transparent 0px,
+      rgba(255, 255, 255, 0.00) 10px,
+      rgba(255, 255, 255, 0.03) 20px,
+      rgba(180, 150, 255, 0.05) 34px,
+      rgba(120, 255, 220, 0.035) 48px,
+      transparent 64px
+    )
+  `,
+  filter: "blur(2px) brightness(1.04)",
+  animation: "auroraCurtainTwo 24s ease-in-out infinite",
+},
+
+cloudOne: {
+  position: "absolute",
+  top: "4%",
+  left: "-10%",
+  width: "140%",
+  height: "120px",
+  pointerEvents: "none",
+  zIndex: 1,
+  opacity: 0.28,
+  background: `
+    radial-gradient(
+      ellipse at 30% 50%,
+      rgba(255, 255, 255, 0.18) 0%,
+      rgba(255, 255, 255, 0.08) 40%,
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse at 70% 40%,
+      rgba(200, 220, 255, 0.16) 0%,
+      rgba(200, 220, 255, 0.06) 45%,
+      transparent 75%
+    )
+  `,
+  filter: "blur(18px)",
+  animation: "cloudDriftOne 90s linear infinite",
+},
+
+  cloudTwo: {
+    position: "absolute",
+    top: "20%",
+    right: "8%",
+    width: "110px",
+    height: "74px",
+    borderRadius: "50%",
+    pointerEvents: "none",
+    zIndex: 1,
+    background:
+      "radial-gradient(circle at 50% 50%, rgba(140, 190, 255, 0.30), rgba(140, 190, 255, 0.14) 42%, transparent 72%)",
+    filter: "blur(10px)",
+    animation: "cloudFloatTwo 18s ease-in-out infinite",
+  },
+
+  cloudThree: {
+    position: "absolute",
+    top: "34%",
+    left: "34%",
+    width: "130px",
+    height: "90px",
+    borderRadius: "50%",
+    pointerEvents: "none",
+    zIndex: 1,
+    background:
+      "radial-gradient(circle at 50% 50%, rgba(185, 140, 255, 0.28), rgba(185, 140, 255, 0.12) 44%, transparent 72%)",
+    filter: "blur(12px)",
+    animation: "cloudFloatThree 22s ease-in-out infinite",
   },
 
   sprite: {
@@ -1112,7 +1365,7 @@ crystalTiny: {
   spriteBounce: {},
 
   chatList: {
-    height: "55vh",
+    height: "34vh",
     overflowY: "auto",
     padding: 16,
     borderRadius: 16,
