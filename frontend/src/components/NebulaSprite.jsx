@@ -1,31 +1,48 @@
 import { useEffect, useState } from "react";
 
-import idle1 from "../assets/sprites/nebula_idle_1.png";
-import idle2 from "../assets/sprites/nebula_idle_2.png";
-import idle3 from "../assets/sprites/nebula_idle_3.png";
+import idleLeft from "../assets/sprites/nebula/nebula_idle_left.png";
+import blinkLeft from "../assets/sprites/nebula/nebula_blink_left.png";
+import walkLeft1 from "../assets/sprites/nebula/nebula_walk_left_1.png";
+import walkLeft2 from "../assets/sprites/nebula/nebula_walk_left_2.png";
 
-const frames = [idle1, idle2, idle3];
+const idleFrames = [idleLeft];
+const blinkFrames = [blinkLeft];
+const walkFrames = [walkLeft1, walkLeft2];
 
-export default function NebulaSprite() {
+export default function NebulaSprite({ blinkOn, behavior = "idle" }) {
   const [frameIndex, setFrameIndex] = useState(0);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setFrameIndex((prev) => (prev + 1) % frames.length);
-    }, 400);
+  const activeFrames = blinkOn
+    ? blinkFrames
+    : behavior === "walk"
+    ? walkFrames
+    : idleFrames;
 
-    return () => clearInterval(interval);
-  }, []);
+  useEffect(() => {
+    setFrameIndex(0);
+  }, [blinkOn, behavior]);
+
+  useEffect(() => {
+    if (blinkOn || behavior !== "walk") return;
+
+    const interval = setInterval(() => {
+      setFrameIndex((prev) => (prev + 1) % walkFrames.length);
+    }, 480);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [blinkOn, behavior]);
 
   return (
-  <img
-    src={frames[frameIndex]}
-    alt="Nebula"
-    style={{
-      width: "160px",
-      imageRendering: "pixelated",
-      transform: "translateY(40px)"
-    }}
-  />
-);
+    <img
+      src={activeFrames[frameIndex] || idleLeft}
+      alt="Nebula"
+      style={{
+        width: "144px",
+        imageRendering: "pixelated",
+        transform: "translateY(40px)",
+      }}
+    />
+  );
 }

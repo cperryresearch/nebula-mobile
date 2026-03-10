@@ -45,51 +45,25 @@ function App() {
     blink: blink,
   };
 
-  // --- Blink loop ---
-  const [blinkOn, setBlinkOn] = useState(false);
-  const [shootingStarData, setShootingStarData] = useState(null);
-  const [ufoVisible, setUfoVisible] = useState(false);
-  const [ufoDirection, setUfoDirection] = useState("left");
-  const startedRef = useRef(false);
-  const t1Ref = useRef(null);
-  const t2Ref = useRef(null);
-  const lastBlinkAtRef = useRef(0);
+// --- Blink loop ---
+const [blinkOn, setBlinkOn] = useState(false);
+const [shootingStarData, setShootingStarData] = useState(null);
+const [ufoVisible, setUfoVisible] = useState(false);
+const [ufoDirection, setUfoDirection] = useState("left");
 
-  useEffect(() => {
-    if (startedRef.current) return;
-    startedRef.current = true;
+useEffect(() => {
+  const interval = window.setInterval(() => {
+    setBlinkOn(true);
 
-    const scheduleNextBlink = () => {
-      const next = 10000 + Math.random() * 8000; // 10–18s
+    window.setTimeout(() => {
+      setBlinkOn(false);
+    }, 1000);
+  }, 3000);
 
-      t1Ref.current = window.setTimeout(() => {
-        const now = Date.now();
-        const elapsed = now - lastBlinkAtRef.current;
-
-        // enforce minimum 8s between blinks (extra safety)
-        if (elapsed < 8000) {
-          const wait = 8000 - elapsed + 200;
-          t1Ref.current = window.setTimeout(scheduleNextBlink, wait);
-          return;
-        }
-
-        lastBlinkAtRef.current = now;
-        setBlinkOn(true);
-
-        t2Ref.current = window.setTimeout(() => {
-          setBlinkOn(false);
-          scheduleNextBlink();
-        }, 500);
-      }, next);
-    };
-
-    scheduleNextBlink();
-
-    return () => {
-      if (t1Ref.current) window.clearTimeout(t1Ref.current);
-      if (t2Ref.current) window.clearTimeout(t2Ref.current);
-    };
-  }, []);
+  return () => {
+    window.clearInterval(interval);
+  };
+}, []);
 
   // --- Bounce ---
   const [bounceOn, setBounceOn] = useState(false);
@@ -677,7 +651,7 @@ useEffect(() => {
         <div style={styles.crystalTiny} />
       </div>
 
-      <NebulaSprite />
+      <NebulaSprite blinkOn={blinkOn} behavior="idle" />
     </div>
 
           <div ref={listRef} style={styles.chatList}>
