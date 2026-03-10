@@ -53,6 +53,7 @@ const [ufoDirection, setUfoDirection] = useState("left");
 
 const [nebulaX, setNebulaX] = useState(0);
 const [walkDirection, setWalkDirection] = useState(1);
+const [spriteBehavior, setSpriteBehavior] = useState("idle");
 
 useEffect(() => {
   const interval = window.setInterval(() => {
@@ -69,6 +70,8 @@ useEffect(() => {
 }, []);
 
 useEffect(() => {
+  if (spriteBehavior !== "walk") return;
+
   const interval = setInterval(() => {
     setNebulaX((prev) => {
       let next = prev + walkDirection * 4;
@@ -88,7 +91,17 @@ useEffect(() => {
   }, 120);
 
   return () => clearInterval(interval);
-}, [walkDirection]);
+}, [spriteBehavior, walkDirection]);
+
+useEffect(() => {
+  const timeout = window.setTimeout(() => {
+    setSpriteBehavior((prev) => (prev === "idle" ? "walk" : "idle"));
+  }, spriteBehavior === "idle" ? 2200 : 3200);
+
+  return () => {
+    window.clearTimeout(timeout);
+  };
+}, [spriteBehavior]);
 
   // --- Bounce ---
   const [bounceOn, setBounceOn] = useState(false);
@@ -676,7 +689,12 @@ useEffect(() => {
         <div style={styles.crystalTiny} />
       </div>
 
-      <NebulaSprite blinkOn={blinkOn} behavior="walk" x={nebulaX} />
+      <NebulaSprite
+        blinkOn={blinkOn}
+        behavior={spriteBehavior}
+        x={nebulaX}
+        walkDirection={walkDirection}
+       />
     </div>
 
           <div ref={listRef} style={styles.chatList}>

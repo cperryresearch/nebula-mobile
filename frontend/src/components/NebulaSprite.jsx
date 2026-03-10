@@ -9,14 +9,20 @@ const idleFrames = [idleLeft];
 const blinkFrames = [blinkLeft];
 const walkFrames = [walkLeft1, walkLeft2];
 
-export default function NebulaSprite({ blinkOn, behavior = "idle", x = 0 }) {
+export default function NebulaSprite({
+  blinkOn,
+  behavior = "idle",
+  x = 0,
+  walkDirection = 1,
+}) {
   const [frameIndex, setFrameIndex] = useState(0);
 
-  const activeFrames = blinkOn
-    ? blinkFrames
-    : behavior === "walk"
-    ? walkFrames
-    : idleFrames;
+  const activeFrames =
+    blinkOn && behavior === "idle"
+      ? blinkFrames
+      : behavior === "walk"
+      ? walkFrames
+      : idleFrames;
 
   useEffect(() => {
     setFrameIndex(0);
@@ -41,7 +47,7 @@ export default function NebulaSprite({ blinkOn, behavior = "idle", x = 0 }) {
       style={{
         width: "144px",
         imageRendering: "pixelated",
-        transform: `translateX(${x}px) translateY(40px) scaleX(${x < 0 ? -1 : 1})`,
+        transform: `translateX(${x}px) translateY(40px) scaleX(${walkDirection === 1 ? -1 : 1})`,
       }}
     />
   );
