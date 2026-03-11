@@ -4,10 +4,13 @@ import idleLeft from "../assets/sprites/nebula/nebula_idle_left.png";
 import blinkLeft from "../assets/sprites/nebula/nebula_blink_left.png";
 import walkLeft1 from "../assets/sprites/nebula/nebula_walk_left_1.png";
 import walkLeft2 from "../assets/sprites/nebula/nebula_walk_left_2.png";
+import tailFlick1 from "../assets/sprites/nebula/nebula_tail_flick_1.png";
+import tailFlick2 from "../assets/sprites/nebula/nebula_tail_flick_2.png";
 
 const idleFrames = [idleLeft];
 const blinkFrames = [blinkLeft];
 const walkFrames = [walkLeft1, walkLeft2];
+const tailFlickFrames = [tailFlick1, tailFlick2];
 
 export default function NebulaSprite({
   blinkOn,
@@ -22,18 +25,20 @@ export default function NebulaSprite({
       ? blinkFrames
       : behavior === "walk"
       ? walkFrames
+      : behavior === "tailFlick"
+      ? tailFlickFrames
       : idleFrames;
 
   useEffect(() => {
-    setFrameIndex(0);
-  }, [blinkOn, behavior]);
+    if (blinkOn) return;
+    if (behavior !== "walk" && behavior !== "tailFlick") return;
 
-  useEffect(() => {
-    if (blinkOn || behavior !== "walk") return;
+    const frames = behavior === "walk" ? walkFrames : tailFlickFrames;
+    const speed = behavior === "walk" ? 260 : 180;
 
     const interval = setInterval(() => {
-      setFrameIndex((prev) => (prev + 1) % walkFrames.length);
-    }, 260);
+      setFrameIndex((prev) => (prev + 1) % frames.length);
+    }, speed);
 
     return () => {
       clearInterval(interval);

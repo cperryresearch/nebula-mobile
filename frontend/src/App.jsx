@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "./lib/supabaseClient";
 import NebulaSprite from "./components/NebulaSprite";
 import ufo from "./assets/sprites/ufo.png";
@@ -10,118 +10,29 @@ const makeId = () =>
     : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
 function App() {
-  // --- Ensure Supabase session (anonymous) on startup ---
-  useEffect(() => {
-    async function ensureSession() {
-      const { data, error } = await supabase.auth.getSession();
-      if (error) {
-        console.log("Error:", error);
-        return;
-      }
-
-      if (!data.session) {
-        const { data: anonData, error: anonErr } =
-          await supabase.auth.signInAnonymously();
-
-        console.log("Signed in anonymously:", anonData?.session ? "yes" : "no");
-        if (anonErr) console.log("Anon sign-in error:", anonErr);
-      }
-    }
-
-    ensureSession();
-  }, []);
-
   const [message, setMessage] = useState("");
+  const [session, setSession] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authBusy, setAuthBusy] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [authMode, setAuthMode] = useState("sign-in");
+  const [authMessage, setAuthMessage] = useState("");
   const [nebulaState, setNebulaState] = useState("idle");
 
-// --- Blink loop ---
-const [blinkOn, setBlinkOn] = useState(false);
-const [shootingStarData, setShootingStarData] = useState(null);
-const [ufoVisible, setUfoVisible] = useState(false);
-const [ufoDirection, setUfoDirection] = useState("left");
+  // --- Blink / environment / movement ---
+  const [blinkOn, setBlinkOn] = useState(false);
+  const [shootingStarData, setShootingStarData] = useState(null);
+  const [ufoVisible, setUfoVisible] = useState(false);
+  const [ufoDirection, setUfoDirection] = useState("left");
 
-const [nebulaX, setNebulaX] = useState(0);
-const [walkDirection, setWalkDirection] = useState(1);
-const [spriteBehavior, setSpriteBehavior] = useState("idle");
-const [isTurning, setIsTurning] = useState(false);
-
-useEffect(() => {
-  const interval = window.setInterval(() => {
-    setBlinkOn(true);
-
-    window.setTimeout(() => {
-      setBlinkOn(false);
-    }, 1000);
-  }, 3000);
-
-  return () => {
-    window.clearInterval(interval);
-  };
-}, []);
-
-useEffect(() => {
-  if (spriteBehavior !== "walk" || isTurning) return;
-
-  const interval = window.setInterval(() => {
-    setNebulaX((prev) => {
-      let next = prev + walkDirection * 4;
-
-      if (next >= 80) {
-        next = 80;
-        setIsTurning(true);
-        setSpriteBehavior("idle");
-
-        window.setTimeout(() => {
-          setWalkDirection(-1);
-          setSpriteBehavior("walk");
-          setIsTurning(false);
-        }, 550);
-      }
-
-      if (next <= -80) {
-        next = -80;
-        setIsTurning(true);
-        setSpriteBehavior("idle");
-
-        window.setTimeout(() => {
-          setWalkDirection(1);
-          setSpriteBehavior("walk");
-          setIsTurning(false);
-        }, 550);
-      }
-
-      return next;
-    });
-  }, 120);
-
-  return () => window.clearInterval(interval);
-}, [spriteBehavior, walkDirection, isTurning]);
-
-useEffect(() => {
-  if (isTurning) return;
-
-  const timeout = window.setTimeout(() => {
-    setSpriteBehavior((prev) => (prev === "idle" ? "walk" : "idle"));
-  }, spriteBehavior === "idle" ? 2200 : 3200);
-
-  return () => {
-    window.clearTimeout(timeout);
-  };
-}, [spriteBehavior, isTurning]);
+  const [nebulaX, setNebulaX] = useState(0);
+  const [walkDirection, setWalkDirection] = useState(1);
+  const [spriteBehavior, setSpriteBehavior] = useState("idle");
+  const [isTurning, setIsTurning] = useState(false);
 
   // --- Bounce ---
   const [bounceOn, setBounceOn] = useState(false);
-
-  const triggerBounce = () => {
-    setBounceOn(true);
-    window.setTimeout(() => setBounceOn(false), 450);
-  };
-
-  // (This sets state temporarily then returns to idle)
-  const setTemporaryState = (state, duration = 2000) => {
-    setNebulaState(state);
-    window.setTimeout(() => setNebulaState("idle"), duration);
-  };
 
   // --- Greetings + messages ---
   const greetings = [
@@ -152,10 +63,215 @@ useEffect(() => {
   const [loading, setLoading] = useState(false);
   const listRef = useRef(null);
 
-  // ✅ NEW: conversation thread id (server-side)
+  // ✅ server-side thread id
   const [conversationId, setConversationId] = useState(null);
 
-  // ✅ NEW: Load conversationId from localStorage once on startup
+  const refreshSession = useCallback(async () => {
+    const { data, error } = await supabase.auth.getSession();
+
+    if (error) {
+      console.log("getSession error:", error);
+      return null;
+    }
+
+    const nextSession = data.session ?? null;
+    setSession(nextSession);
+    return nextSession;
+  }, []);
+
+  const handleSignUp = useCallback(async () => {
+    const trimmedEmail = email.trim();
+
+    if (!trimmedEmail || !password) {
+      setAuthMessage("Please enter both email and password.");
+      return;
+    }
+
+    setAuthBusy(true);
+    setAuthMessage("");
+
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: trimmedEmail,
+        password,
+      });
+
+      if (error) {
+        setAuthMessage(error.message);
+        return;
+      }
+
+      if (data.session) {
+        setSession(data.session);
+        setAuthMessage("Account created. You are now signed in.");
+      } else {
+        setAuthMessage(
+          "Account created. Check your email if confirmation is required."
+        );
+      }
+    } finally {
+      setAuthBusy(false);
+    }
+  }, [email, password]);
+
+  const handleSignIn = useCallback(async () => {
+    const trimmedEmail = email.trim();
+
+    if (!trimmedEmail || !password) {
+      setAuthMessage("Please enter both email and password.");
+      return;
+    }
+
+    setAuthBusy(true);
+    setAuthMessage("");
+
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: trimmedEmail,
+        password,
+      });
+
+      if (error) {
+        setAuthMessage(error.message);
+        return;
+      }
+
+      setSession(data.session ?? null);
+      setAuthMessage("Signed in.");
+    } finally {
+      setAuthBusy(false);
+    }
+  }, [email, password]);
+
+  const handleSignOut = useCallback(async () => {
+    setAuthBusy(true);
+    setAuthMessage("");
+
+    try {
+      const { error } = await supabase.auth.signOut();
+
+      if (error) {
+        setAuthMessage(error.message);
+        return;
+      }
+
+      setSession(null);
+      setPassword("");
+      setConversationId(null);
+      localStorage.removeItem("nebula_conversation_id");
+      setAuthMessage("Signed out.");
+    } finally {
+      setAuthBusy(false);
+    }
+  }, []);
+
+  // --- Load existing auth session on startup ---
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadSession() {
+      setAuthLoading(true);
+
+      const currentSession = await refreshSession();
+
+      if (mounted) {
+        setSession(currentSession);
+        setAuthLoading(false);
+      }
+    }
+
+    loadSession();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      if (mounted) {
+        setSession(nextSession ?? null);
+        setAuthLoading(false);
+      }
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [refreshSession]);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setBlinkOn(true);
+
+      window.setTimeout(() => {
+        setBlinkOn(false);
+      }, 1000);
+    }, 3000);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (spriteBehavior !== "walk" || isTurning) return;
+
+    const interval = window.setInterval(() => {
+      setNebulaX((prev) => {
+        let next = prev + walkDirection * 4;
+
+        if (next >= 80) {
+          next = 80;
+          setIsTurning(true);
+          setSpriteBehavior("idle");
+
+          window.setTimeout(() => {
+            setWalkDirection(-1);
+            setSpriteBehavior("walk");
+            setIsTurning(false);
+          }, 550);
+        }
+
+        if (next <= -80) {
+          next = -80;
+          setIsTurning(true);
+          setSpriteBehavior("idle");
+
+          window.setTimeout(() => {
+            setWalkDirection(1);
+            setSpriteBehavior("walk");
+            setIsTurning(false);
+          }, 550);
+        }
+
+        return next;
+      });
+    }, 120);
+
+    return () => window.clearInterval(interval);
+  }, [spriteBehavior, walkDirection, isTurning]);
+
+  useEffect(() => {
+    if (isTurning) return;
+
+    const timeout = window.setTimeout(() => {
+      setSpriteBehavior((prev) => (prev === "idle" ? "walk" : "idle"));
+    }, spriteBehavior === "idle" ? 2200 : 3200);
+
+    return () => {
+      window.clearTimeout(timeout);
+    };
+  }, [spriteBehavior, isTurning]);
+
+  const triggerBounce = () => {
+    setBounceOn(true);
+    window.setTimeout(() => setBounceOn(false), 450);
+  };
+
+  const setTemporaryState = (state, duration = 2000) => {
+    setNebulaState(state);
+    window.setTimeout(() => setNebulaState("idle"), duration);
+  };
+
+  // Load conversationId from localStorage once on startup
   useEffect(() => {
     try {
       const cid = localStorage.getItem("nebula_conversation_id");
@@ -165,7 +281,7 @@ useEffect(() => {
     }
   }, []);
 
-  // ✅ NEW: Persist conversationId whenever it changes
+  // Persist conversationId whenever it changes
   useEffect(() => {
     try {
       if (conversationId) {
@@ -203,89 +319,85 @@ useEffect(() => {
   }, [messages, loading]);
 
   const canSend = useMemo(
-    () => message.trim().length > 0 && !loading,
-    [message, loading]
+    () => !!session && message.trim().length > 0 && !loading && !authLoading,
+    [session, message, loading, authLoading]
   );
 
-useEffect(() => {
-  const starVariants = [
-    {
-      key: "downRight",
-      top: "8%",
-      left: "6%",
-    },
-    {
-      key: "downRight",
-      top: "18%",
-      left: "14%",
-    },
-    {
-      key: "downLeft",
-      top: "10%",
-      right: "8%",
-    },
-    {
-      key: "downLeft",
-      top: "22%",
-      right: "14%",
-    },
-    {
-      key: "upRight",
-      bottom: "26%",
-      left: "8%",
-    },
-    {
-      key: "upRight",
-      bottom: "16%",
-      left: "18%",
-    },
-    {
-      key: "upLeft",
-      bottom: "24%",
-      right: "8%",
-    },
-    {
-      key: "upLeft",
-      bottom: "14%",
-      right: "18%",
-    },
-  ];
+  useEffect(() => {
+    const starVariants = [
+      {
+        key: "downRight",
+        top: "8%",
+        left: "6%",
+      },
+      {
+        key: "downRight",
+        top: "18%",
+        left: "14%",
+      },
+      {
+        key: "downLeft",
+        top: "10%",
+        right: "8%",
+      },
+      {
+        key: "downLeft",
+        top: "22%",
+        right: "14%",
+      },
+      {
+        key: "upRight",
+        bottom: "26%",
+        left: "8%",
+      },
+      {
+        key: "upRight",
+        bottom: "16%",
+        left: "18%",
+      },
+      {
+        key: "upLeft",
+        bottom: "24%",
+        right: "8%",
+      },
+      {
+        key: "upLeft",
+        bottom: "14%",
+        right: "18%",
+      },
+    ];
 
-  const interval = setInterval(() => {
-    const chance = Math.random();
+    const interval = setInterval(() => {
+      const chance = Math.random();
 
-    // overall sky event chance
-    if (chance < 0.5) {
-      const eventRoll = Math.random();
+      if (chance < 0.5) {
+        const eventRoll = Math.random();
 
-      if (eventRoll < 0.78) {
-        // shooting star
-        const variant =
-          starVariants[Math.floor(Math.random() * starVariants.length)];
+        if (eventRoll < 0.78) {
+          const variant =
+            starVariants[Math.floor(Math.random() * starVariants.length)];
 
-        setShootingStarData(variant);
+          setShootingStarData(variant);
 
-        setTimeout(() => {
-          setShootingStarData(null);
-        }, 1200);
-      } else {
-        // UFO event
-        const dirRoll = Math.random();
-        setUfoDirection(dirRoll < 0.5 ? "left" : "right");
+          setTimeout(() => {
+            setShootingStarData(null);
+          }, 1200);
+        } else {
+          const dirRoll = Math.random();
+          setUfoDirection(dirRoll < 0.5 ? "left" : "right");
 
-        setUfoVisible(true);
+          setUfoVisible(true);
 
-        setTimeout(() => {
-          setUfoVisible(false);
-        }, 7000);
+          setTimeout(() => {
+            setUfoVisible(false);
+          }, 7000);
+        }
       }
-    }
-  }, 4600); // moderate demo timing
+    }, 4600);
 
-  return () => clearInterval(interval);
-}, []);
+    return () => clearInterval(interval);
+  }, []);
 
-  // ---- MEMORY HELPER ----
   const buildHistoryPayload = (msgs, limit = 12) => {
     return msgs.slice(-limit).map((m) => ({
       role: m.role === "nebula" ? "assistant" : "user",
@@ -293,16 +405,15 @@ useEffect(() => {
     }));
   };
 
-  // ✅ UPDATED: Clear chat now resets BOTH local messages and the server-side thread id
   const clearChat = () => {
     try {
       localStorage.removeItem("nebula_messages");
-      localStorage.removeItem("nebula_conversation_id"); // ✅ NEW
+      localStorage.removeItem("nebula_conversation_id");
     } catch {
       // ignore
     }
 
-    setConversationId(null); // ✅ NEW: start a fresh conversation thread on next send
+    setConversationId(null);
 
     const freshGreeting =
       greetings[Math.floor(Math.random() * greetings.length)];
@@ -317,19 +428,21 @@ useEffect(() => {
     ]);
   };
 
-  // ✅ sendMessage (threaded)
   const sendMessage = async () => {
     triggerBounce();
 
     const text = message.trim();
     if (!text || loading) return;
 
+    if (!session) {
+      setAuthMessage("Please sign in so Nebula can remember you.");
+      return;
+    }
+
     setNebulaState("thinking");
 
-    // Build history BEFORE pushing the new user message
     const history = buildHistoryPayload(messages, 12);
 
-    // Push user message
     const userMsg = {
       id: makeId(),
       role: "user",
@@ -338,34 +451,21 @@ useEffect(() => {
     };
 
     setMessages((prev) => [...prev, userMsg]);
-
-    // Clear input + set loading
     setMessage("");
     setLoading(true);
 
-try {
+    try {
+      const {
+        data: { session: sessionData },
+        error: sessionErr,
+      } = await supabase.auth.getSession();
 
-  let { data: sessionData, error: sessionErr } =
-    await supabase.auth.getSession();
+      if (sessionErr) {
+        console.log("getSession error:", sessionErr);
+      }
 
-  if (sessionErr) {
-    console.log("getSession error:", sessionErr);
-  }
+      const token = sessionData?.access_token;
 
-  if (!sessionData?.session) {
-    const { data: anonData, error: anonErr } =
-      await supabase.auth.signInAnonymously();
-
-    if (anonErr) {
-      console.log("Anon sign-in error:", anonErr);
-    }
-
-    sessionData = anonData;
-  }
-
-  const token = sessionData?.session?.access_token;
-
-      // Call backend
       const res = await fetch("https://nebula-backend-ej6e.onrender.com/chat", {
         method: "POST",
         headers: {
@@ -373,8 +473,10 @@ try {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
-          user_id: sessionData?.session?.user?.id || "00000000-0000-0000-0000-000000000000",
-          conversation_id: conversationId, // ✅ persists thread
+          user_id:
+            sessionData?.user?.id ||
+            "00000000-0000-0000-0000-000000000000",
+          conversation_id: conversationId,
           message: text,
           history: history,
         }),
@@ -387,7 +489,6 @@ try {
 
       const replyData = await res.json();
 
-      // ✅ NEW: store conversation_id so next message continues the same thread
       if (replyData.conversation_id) {
         setConversationId(replyData.conversation_id);
       }
@@ -478,61 +579,61 @@ try {
           0% {
             opacity: 0.92;
             filter: blur(2px) brightness(0.95);
+          }
+          50% {
+            opacity: 1;
+            filter: blur(3px) brightness(1.18);
+          }
+          100% {
+            opacity: 0.92;
+            filter: blur(2px) brightness(0.95);
+          }
         }
-        50% {
-           opacity: 1;
-           filter: blur(3px) brightness(1.18);
-        }
-        100% {
-           opacity: 0.92;
-           filter: blur(2px) brightness(0.95);
-        }
-      }
         
         @keyframes cloudFloatOne {
           0% {
-          transform: translateX(0px) translateY(0px) scale(1);
-          opacity: 0.34;
-        }
+            transform: translateX(0px) translateY(0px) scale(1);
+            opacity: 0.34;
+          }
           50% {
-          transform: translateX(10px) translateY(-6px) scale(1.06);
-          opacity: 0.5;
-        }
+            transform: translateX(10px) translateY(-6px) scale(1.06);
+            opacity: 0.5;
+          }
           100% {
-          transform: translateX(0px) translateY(0px) scale(1);
-          opacity: 0.34;
-        } 
-      }
+            transform: translateX(0px) translateY(0px) scale(1);
+            opacity: 0.34;
+          } 
+        }
 
-       @keyframes cloudFloatTwo {
+        @keyframes cloudFloatTwo {
           0% {
-          transform: translateX(0px) translateY(0px) scale(1);
-          opacity: 0.28;
-        }
+            transform: translateX(0px) translateY(0px) scale(1);
+            opacity: 0.28;
+          }
           50% {
-          transform: translateX(-12px) translateY(4px) scale(1.08);
-          opacity: 0.44;
-        }
+            transform: translateX(-12px) translateY(4px) scale(1.08);
+            opacity: 0.44;
+          }
           100% {
-          transform: translateX(0px) translateY(0px) scale(1);
-          opacity: 0.28;
+            transform: translateX(0px) translateY(0px) scale(1);
+            opacity: 0.28;
+          }
         }
-      }
 
         @keyframes cloudFloatThree {
           0% {
-          transform: translateX(0px) translateY(0px) scale(1);
-          opacity: 0.22;
-        }
+            transform: translateX(0px) translateY(0px) scale(1);
+            opacity: 0.22;
+          }
           50% {
-          transform: translateX(8px) translateY(8px) scale(1.05);
-          opacity: 0.36;
-        }
+            transform: translateX(8px) translateY(8px) scale(1.05);
+            opacity: 0.36;
+          }
           100% {
-          transform: translateX(0px) translateY(0px) scale(1);
-          opacity: 0.22;
+            transform: translateX(0px) translateY(0px) scale(1);
+            opacity: 0.22;
+          }
         }
-      }
 
         @keyframes auroraCurtainOne {
           0% {
@@ -725,7 +826,6 @@ try {
         }
       `}</style>
 
-      {/* centered single-column container */}
       <div style={styles.container}>
         <div style={styles.shell}>
           <header style={styles.header}>
@@ -743,84 +843,183 @@ try {
                 Clear chat
               </button>
             </div>
+
+            <div style={styles.authCard}>
+              {authLoading ? (
+                <div style={styles.authStatus}>Checking session…</div>
+              ) : session ? (
+                <>
+                  <div style={styles.authStatus}>
+                    Signed in as {session.user?.email || "unknown user"}
+                  </div>
+
+                  {authMessage ? (
+                    <div style={styles.authMessage}>{authMessage}</div>
+                  ) : null}
+
+                  <button
+                    type="button"
+                    onClick={handleSignOut}
+                    disabled={authBusy}
+                    style={styles.authButton}
+                  >
+                    {authBusy ? "Working…" : "Sign out"}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div style={styles.authTabs}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAuthMode("sign-in");
+                        setAuthMessage("");
+                      }}
+                      style={{
+                        ...styles.authTab,
+                        ...(authMode === "sign-in" ? styles.authTabActive : {}),
+                      }}
+                    >
+                      Sign in
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAuthMode("sign-up");
+                        setAuthMessage("");
+                      }}
+                      style={{
+                        ...styles.authTab,
+                        ...(authMode === "sign-up" ? styles.authTabActive : {}),
+                      }}
+                    >
+                      Sign up
+                    </button>
+                  </div>
+
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Email"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    style={styles.authInput}
+                  />
+
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Password"
+                    style={styles.authInput}
+                  />
+
+                  {authMessage ? (
+                    <div style={styles.authMessage}>{authMessage}</div>
+                  ) : (
+                    <div style={styles.authHint}>
+                      Sign in so Nebula can remember you.
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={authMode === "sign-in" ? handleSignIn : handleSignUp}
+                    disabled={authBusy}
+                    style={styles.authButton}
+                  >
+                    {authBusy
+                      ? "Working…"
+                      : authMode === "sign-in"
+                      ? "Sign in"
+                      : "Create account"}
+                  </button>
+                </>
+              )}
+            </div>
           </header>
 
-          {/* STAGE (Phase 2.1) */}
           <div style={styles.stage}>
             <div style={styles.auroraVeilOne} />
             <div style={styles.auroraVeilTwo} />
             <div style={styles.stageGlow} />
-        
+
             <div style={styles.cloudOne} />
             <div style={styles.cloudTwo} />
             <div style={styles.cloudThree} />
             <div style={styles.sparklesBack} />
             <div style={styles.sparklesMid} />
             <div style={styles.sparklesFront} />
-          
-          {shootingStarData && (
-            <div
-              style={{
-                ...styles.shootingStar,
-                ...(shootingStarData.top ? { top: shootingStarData.top } : {}),
-                ...(shootingStarData.left ? { left: shootingStarData.left } : {}),
-                ...(shootingStarData.right ? { right: shootingStarData.right } : {}),
-                ...(shootingStarData.bottom ? { bottom: shootingStarData.bottom } : {}),
-                ...(shootingStarData.key === "downRight"
-                  ? styles.shootingStarDownRight
-                  : {}),
-                ...(shootingStarData.key === "downLeft"
-                  ? styles.shootingStarDownLeft
-                  : {}),
-                ...(shootingStarData.key === "upRight"
-                  ? styles.shootingStarUpRight
-                  : {}),
-                ...(shootingStarData.key === "upLeft"
-                  ? styles.shootingStarUpLeft
-                  : {}),
-               }}
-             />
-           )}
 
-          {ufoVisible && (
-            <img
-              src={ufo}
-              style={{
-                ...styles.ufo,
-                ...(ufoDirection === "left"
-                  ? styles.ufoLeftToRight
-                  : styles.ufoRightToLeft)
-             }}
+            {shootingStarData && (
+              <div
+                style={{
+                  ...styles.shootingStar,
+                  ...(shootingStarData.top ? { top: shootingStarData.top } : {}),
+                  ...(shootingStarData.left ? { left: shootingStarData.left } : {}),
+                  ...(shootingStarData.right ? { right: shootingStarData.right } : {}),
+                  ...(shootingStarData.bottom ? { bottom: shootingStarData.bottom } : {}),
+                  ...(shootingStarData.key === "downRight"
+                    ? styles.shootingStarDownRight
+                    : {}),
+                  ...(shootingStarData.key === "downLeft"
+                    ? styles.shootingStarDownLeft
+                    : {}),
+                  ...(shootingStarData.key === "upRight"
+                    ? styles.shootingStarUpRight
+                    : {}),
+                  ...(shootingStarData.key === "upLeft"
+                    ? styles.shootingStarUpLeft
+                    : {}),
+                }}
+              />
+            )}
+
+            {ufoVisible && (
+              <img
+                src={ufo}
+                alt=""
+                style={{
+                  ...styles.ufo,
+                  ...(ufoDirection === "left"
+                    ? styles.ufoLeftToRight
+                    : styles.ufoRightToLeft),
+                }}
+              />
+            )}
+
+            <div style={styles.planetGround} />
+
+            <div style={styles.mushroomLeft}>
+              <div style={styles.mushroomCapPink} />
+              <div style={styles.mushroomStemPink} />
+            </div>
+
+            <div style={styles.mushroomRight}>
+              <div style={styles.mushroomCapBlue} />
+              <div style={styles.mushroomStemBlue} />
+            </div>
+
+            <div style={styles.crystalFieldGlow} />
+
+            <div style={styles.crystalCluster}>
+              <div style={styles.crystalTall} />
+              <div style={styles.crystalMid} />
+              <div style={styles.crystalSmall} />
+              <div style={styles.crystalTiny} />
+            </div>
+
+            <NebulaSprite
+              blinkOn={blinkOn}
+              behavior={spriteBehavior}
+              x={nebulaX}
+              walkDirection={walkDirection}
+              bounceOn={bounceOn}
+              nebulaState={nebulaState}
             />
-          )}
-          <div style={styles.planetGround} />
-
-          <div style={styles.mushroomLeft}>
-          <div style={styles.mushroomCapPink} />
-          <div style={styles.mushroomStemPink} />
-       </div>
-
-       <div style={styles.mushroomRight}>
-         <div style={styles.mushroomCapBlue} />
-         <div style={styles.mushroomStemBlue} />
-      </div>
-
-      <div style={styles.crystalFieldGlow} />
-
-      <div style={styles.crystalCluster}>
-        <div style={styles.crystalTall} />
-        <div style={styles.crystalMid} />
-        <div style={styles.crystalSmall} />
-        <div style={styles.crystalTiny} />
-      </div>
-
-      <NebulaSprite
-        blinkOn={blinkOn}
-        behavior={spriteBehavior}
-        x={nebulaX}
-        walkDirection={walkDirection}
-       />
-    </div>
+          </div>
 
           <div ref={listRef} style={styles.chatList}>
             {messages.map((m) => (
@@ -865,15 +1064,23 @@ try {
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               onKeyDown={onKeyDown}
-              placeholder="Say something to Nebula…"
+              placeholder={
+                session
+                  ? "Say something to Nebula…"
+                  : "Sign in to chat with Nebula…"
+              }
               style={styles.input}
               rows={2}
+              disabled={!session}
             />
 
             <button
               onClick={sendMessage}
               disabled={!canSend}
-              style={styles.button}
+              style={{
+                ...styles.button,
+                opacity: canSend ? 1 : 0.6,
+              }}
             >
               {loading ? "…" : "Send"}
             </button>
@@ -948,6 +1155,75 @@ const styles = {
     fontSize: 12,
   },
 
+  authCard: {
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 16,
+    background: "rgba(255,255,255,0.05)",
+    border: "1px solid rgba(255,255,255,0.08)",
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
+  },
+
+  authStatus: {
+    fontSize: 13,
+    opacity: 0.88,
+  },
+
+  authTabs: {
+    display: "flex",
+    gap: 8,
+  },
+
+  authTab: {
+    flex: 1,
+    borderRadius: 10,
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(255,255,255,0.04)",
+    color: "#e9eefc",
+    padding: "8px 10px",
+    cursor: "pointer",
+    fontSize: 12,
+  },
+
+  authTabActive: {
+    background: "rgba(140, 190, 255, 0.16)",
+    border: "1px solid rgba(140, 190, 255, 0.28)",
+  },
+
+  authInput: {
+    width: "100%",
+    padding: 12,
+    borderRadius: 12,
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "rgba(255,255,255,0.06)",
+    color: "#e9eefc",
+    outline: "none",
+    boxSizing: "border-box",
+  },
+
+  authMessage: {
+    fontSize: 12,
+    lineHeight: 1.35,
+    color: "#ffd7e6",
+  },
+
+  authHint: {
+    fontSize: 12,
+    opacity: 0.68,
+  },
+
+  authButton: {
+    borderRadius: 12,
+    border: "1px solid rgba(255,255,255,0.16)",
+    background: "rgba(255,255,255,0.10)",
+    color: "#e9eefc",
+    padding: "10px 12px",
+    cursor: "pointer",
+    fontSize: 13,
+  },
+
   title: {
     margin: 0,
     fontSize: 28,
@@ -961,237 +1237,238 @@ const styles = {
   },
 
   sparklesBack: {
-  position: "absolute",
-  inset: 0,
-  zIndex: 2,
-  pointerEvents: "none",
-  animation: "sparkleTwinkleSlow 4.6s ease-in-out infinite",
-  opacity: 0.45,
-  backgroundImage:
-    "radial-gradient(1.5px 1.5px at 18% 28%, rgba(255,255,255,0.45), transparent),\
-     radial-gradient(1.5px 1.5px at 76% 24%, rgba(180,220,255,0.40), transparent),\
-     radial-gradient(1px 1px at 62% 58%, rgba(255,255,255,0.35), transparent),\
-     radial-gradient(1px 1px at 28% 68%, rgba(210,190,255,0.35), transparent)",
-},
+    position: "absolute",
+    inset: 0,
+    zIndex: 2,
+    pointerEvents: "none",
+    animation: "sparkleTwinkleSlow 4.6s ease-in-out infinite",
+    opacity: 0.45,
+    backgroundImage:
+      "radial-gradient(1.5px 1.5px at 18% 28%, rgba(255,255,255,0.45), transparent),\
+       radial-gradient(1.5px 1.5px at 76% 24%, rgba(180,220,255,0.40), transparent),\
+       radial-gradient(1px 1px at 62% 58%, rgba(255,255,255,0.35), transparent),\
+       radial-gradient(1px 1px at 28% 68%, rgba(210,190,255,0.35), transparent)",
+  },
 
-sparklesMid: {
-  position: "absolute",
-  inset: 0,
-  zIndex: 3,
-  pointerEvents: "none",
-  animation: "sparkleTwinkle 2.8s ease-in-out infinite",
-  opacity: 0.75,
-  backgroundImage:
-    "radial-gradient(2px 2px at 20% 30%, rgba(255,255,255,0.75), transparent),\
-     radial-gradient(2px 2px at 70% 60%, rgba(255,255,255,0.65), transparent),\
-     radial-gradient(1.5px 1.5px at 50% 20%, rgba(255,255,255,0.85), transparent),\
-     radial-gradient(1.5px 1.5px at 30% 80%, rgba(255,255,255,0.55), transparent)",
-},
+  sparklesMid: {
+    position: "absolute",
+    inset: 0,
+    zIndex: 3,
+    pointerEvents: "none",
+    animation: "sparkleTwinkle 2.8s ease-in-out infinite",
+    opacity: 0.75,
+    backgroundImage:
+      "radial-gradient(2px 2px at 20% 30%, rgba(255,255,255,0.75), transparent),\
+       radial-gradient(2px 2px at 70% 60%, rgba(255,255,255,0.65), transparent),\
+       radial-gradient(1.5px 1.5px at 50% 20%, rgba(255,255,255,0.85), transparent),\
+       radial-gradient(1.5px 1.5px at 30% 80%, rgba(255,255,255,0.55), transparent)",
+  },
 
-sparklesFront: {
-  position: "absolute",
-  inset: 0,
-  zIndex: 4,
-  pointerEvents: "none",
-  animation: "sparkleTwinkleFast 1.9s ease-in-out infinite",
-  opacity: 0.9,
-  backgroundImage:
-    "radial-gradient(2px 2px at 36% 22%, rgba(255,210,255,0.9), transparent),\
-     radial-gradient(2px 2px at 64% 34%, rgba(190,230,255,0.9), transparent),\
-     radial-gradient(1.5px 1.5px at 24% 52%, rgba(255,255,255,0.85), transparent),\
-     radial-gradient(1.5px 1.5px at 78% 72%, rgba(220,200,255,0.8), transparent)",
-},
+  sparklesFront: {
+    position: "absolute",
+    inset: 0,
+    zIndex: 4,
+    pointerEvents: "none",
+    animation: "sparkleTwinkleFast 1.9s ease-in-out infinite",
+    opacity: 0.9,
+    backgroundImage:
+      "radial-gradient(2px 2px at 36% 22%, rgba(255,210,255,0.9), transparent),\
+       radial-gradient(2px 2px at 64% 34%, rgba(190,230,255,0.9), transparent),\
+       radial-gradient(1.5px 1.5px at 24% 52%, rgba(255,255,255,0.85), transparent),\
+       radial-gradient(1.5px 1.5px at 78% 72%, rgba(220,200,255,0.8), transparent)",
+  },
 
-shootingStar: {
-  position: "absolute",
-  top: "12%",
-  left: "12%",
-  width: "40px",
-  height: "2px",
-  borderRadius: "2px",
+  shootingStar: {
+    position: "absolute",
+    top: "12%",
+    left: "12%",
+    width: "40px",
+    height: "2px",
+    borderRadius: "2px",
+    background:
+      "linear-gradient(90deg, rgba(255,255,255,0.9), rgba(255,255,255,0.2), transparent)",
+    boxShadow: "0 0 8px rgba(255,255,255,0.8)",
+    pointerEvents: "none",
+    transform: "rotate(32deg)",
+    transformOrigin: "left center",
+    animation: "shootingStar 1.2s ease-out forwards",
+  },
 
-  background:
-    "linear-gradient(90deg, rgba(255,255,255,0.9), rgba(255,255,255,0.2), transparent)",
+  ufo: {
+    position: "absolute",
+    top: "20%",
+    width: "36px",
+    imageRendering: "pixelated",
+    pointerEvents: "none",
+    opacity: 0.9,
+  },
 
-  boxShadow: "0 0 8px rgba(255,255,255,0.8)",
+  ufoLeftToRight: {
+    animation: "ufoDriftRight 7s linear forwards",
+  },
 
-  pointerEvents: "none",
-  transform: "rotate(32deg)",
-  transformOrigin: "left center",
-
-  animation: "shootingStar 1.2s ease-out forwards",
-},
-
-ufo: {
-  position: "absolute",
-  top: "20%",
-  width: "36px",
-  imageRendering: "pixelated",
-  pointerEvents: "none",
-  opacity: 0.9,
-},
-
-ufoLeftToRight: {
-  animation: "ufoDriftRight 7s linear forwards",
-},
-
-ufoRightToLeft: {
-  animation: "ufoDriftLeft 7s linear forwards",
-},
+  ufoRightToLeft: {
+    animation: "ufoDriftLeft 7s linear forwards",
+  },
 
   planetGround: {
-  position: "absolute",
-  transformOrigin: "center center",
-  animation: "planetGlowBreath 7.8s ease-in-out infinite",
-  bottom: "-40px",
-  width: "120%",
-  height: "120px",
-  borderRadius: "50%",
-  background:
-    "radial-gradient(circle at 50% 20%, rgba(120,180,255,0.35), rgba(60,120,255,0.25), rgba(0,0,0,0.9) 80%)",
-  filter: "blur(2px)",
-},
+    position: "absolute",
+    transformOrigin: "center center",
+    animation: "planetGlowBreath 7.8s ease-in-out infinite",
+    bottom: "-40px",
+    width: "120%",
+    height: "120px",
+    borderRadius: "50%",
+    background:
+      "radial-gradient(circle at 50% 20%, rgba(120,180,255,0.35), rgba(60,120,255,0.25), rgba(0,0,0,0.9) 80%)",
+    filter: "blur(2px)",
+  },
 
-crystalFieldGlow: {
-  position: "absolute",
-  bottom: "8px",
-  right: "36px",
-  width: "90px",
-  height: "28px",
-  background: "radial-gradient(ellipse at center, rgba(110,255,210,0.28) 0%, rgba(110,255,210,0.12) 40%, rgba(110,255,210,0.05) 60%, transparent 75%)",
-  filter: "blur(6px)",
-  opacity: 0.75,
-  pointerEvents: "none",
-  animation: "crystalGlowPulse 7s ease-in-out infinite",
-},
+  crystalFieldGlow: {
+    position: "absolute",
+    bottom: "8px",
+    right: "36px",
+    width: "90px",
+    height: "28px",
+    background:
+      "radial-gradient(ellipse at center, rgba(110,255,210,0.28) 0%, rgba(110,255,210,0.12) 40%, rgba(110,255,210,0.05) 60%, transparent 75%)",
+    filter: "blur(6px)",
+    opacity: 0.75,
+    pointerEvents: "none",
+    animation: "crystalGlowPulse 7s ease-in-out infinite",
+  },
 
-mushroomLeft: {
-  position: "absolute",
-  transformOrigin: "bottom center",
-  animation: "mushroomSwayLeft 4.2s ease-in-out infinite",
-  bottom: "34px",
-  left: "21%",
-  width: "24px",
-  height: "34px",
-  display: "flex",
-  flexDirection: "column",
-  alignItems: "center",
-  justifyContent: "flex-end",
-  pointerEvents: "none",
-},
+  mushroomLeft: {
+    position: "absolute",
+    transformOrigin: "bottom center",
+    animation: "mushroomSwayLeft 4.2s ease-in-out infinite",
+    bottom: "34px",
+    left: "21%",
+    width: "24px",
+    height: "34px",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    pointerEvents: "none",
+  },
 
-mushroomRight: {
-  position: "absolute",
-  transformOrigin: "bottom center",
-  animation: "mushroomSwayRight 4.8s ease-in-out infinite",
-  bottom: "33px",
-  right: "19%",
-  width: "22px",
-  height: "32px",
-  display: "flex",
-  flexDirection: "column",
-  alignItems: "center",
-  justifyContent: "flex-end",
-  pointerEvents: "none",
-},
+  mushroomRight: {
+    position: "absolute",
+    transformOrigin: "bottom center",
+    animation: "mushroomSwayRight 4.8s ease-in-out infinite",
+    bottom: "33px",
+    right: "19%",
+    width: "22px",
+    height: "32px",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    pointerEvents: "none",
+  },
 
-mushroomCapPink: {
-  width: "20px",
-  height: "14px",
-  borderRadius: "55% 55% 45% 45%",
-  background:
-    "radial-gradient(circle at 50% 30%, rgba(255,190,235,0.98), rgba(220,110,220,0.9) 58%, rgba(90,45,145,0.92) 100%)",
-  boxShadow:
-    "0 0 10px rgba(255,170,240,0.65), 0 0 22px rgba(160,90,255,0.35)",
-  marginBottom: "-1px",
-},
+  mushroomCapPink: {
+    width: "20px",
+    height: "14px",
+    borderRadius: "55% 55% 45% 45%",
+    background:
+      "radial-gradient(circle at 50% 30%, rgba(255,190,235,0.98), rgba(220,110,220,0.9) 58%, rgba(90,45,145,0.92) 100%)",
+    boxShadow:
+      "0 0 10px rgba(255,170,240,0.65), 0 0 22px rgba(160,90,255,0.35)",
+    marginBottom: "-1px",
+  },
 
-mushroomStemPink: {
-  width: "7px",
-  height: "16px",
-  borderRadius: "5px",
-  background:
-    "linear-gradient(to bottom, rgba(255,240,250,0.95), rgba(220,205,255,0.78))",
-  boxShadow: "0 0 8px rgba(255,220,255,0.22)",
-},
+  mushroomStemPink: {
+    width: "7px",
+    height: "16px",
+    borderRadius: "5px",
+    background:
+      "linear-gradient(to bottom, rgba(255,240,250,0.95), rgba(220,205,255,0.78))",
+    boxShadow: "0 0 8px rgba(255,220,255,0.22)",
+  },
 
-mushroomCapBlue: {
-  width: "18px",
-  height: "13px",
-  borderRadius: "55% 55% 45% 45%",
-  background:
-    "radial-gradient(circle at 50% 30%, rgba(190,240,255,0.98), rgba(100,170,255,0.9) 58%, rgba(45,70,150,0.92) 100%)",
-  boxShadow:
-    "0 0 10px rgba(140,220,255,0.6), 0 0 20px rgba(90,120,255,0.35)",
-  marginBottom: "-1px",
-},
+  mushroomCapBlue: {
+    width: "18px",
+    height: "13px",
+    borderRadius: "55% 55% 45% 45%",
+    background:
+      "radial-gradient(circle at 50% 30%, rgba(190,240,255,0.98), rgba(100,170,255,0.9) 58%, rgba(45,70,150,0.92) 100%)",
+    boxShadow:
+      "0 0 10px rgba(140,220,255,0.6), 0 0 20px rgba(90,120,255,0.35)",
+    marginBottom: "-1px",
+  },
 
-mushroomStemBlue: {
-  width: "6px",
-  height: "15px",
-  borderRadius: "5px",
-  background:
-    "linear-gradient(to bottom, rgba(235,250,255,0.95), rgba(195,220,255,0.78))",
-  boxShadow: "0 0 8px rgba(180,220,255,0.20)",
-},
+  mushroomStemBlue: {
+    width: "6px",
+    height: "15px",
+    borderRadius: "5px",
+    background:
+      "linear-gradient(to bottom, rgba(235,250,255,0.95), rgba(195,220,255,0.78))",
+    boxShadow: "0 0 8px rgba(180,220,255,0.20)",
+  },
 
-crystalCluster: {
-  position: "absolute",
-  bottom: "14px",
-  right: "44px",
-  width: "52px",
-  height: "52px",
-  pointerEvents: "none"
-},
+  crystalCluster: {
+    position: "absolute",
+    bottom: "14px",
+    right: "44px",
+    width: "52px",
+    height: "52px",
+    pointerEvents: "none",
+  },
 
-crystalTall: {
-  position: "absolute",
-  bottom: "0",
-  left: "16px",
-  width: "13px",
-  height: "36px",
-  background: "linear-gradient(155deg, rgba(230,255,248,0.98) 0%, rgba(90,255,210,0.88) 40%, rgba(30,190,165,0.65) 100%)",
-  clipPath: "polygon(50% 0%, 100% 28%, 85% 100%, 15% 100%, 0% 28%)",
-  boxShadow: "0 0 12px rgba(80,255,205,0.65), 0 0 22px rgba(80,255,205,0.2)",
-  filter: "brightness(1.08)",
-  animation: "crystalShardPulse 6.5s ease-in-out infinite",
-},
+  crystalTall: {
+    position: "absolute",
+    bottom: "0",
+    left: "16px",
+    width: "13px",
+    height: "36px",
+    background:
+      "linear-gradient(155deg, rgba(230,255,248,0.98) 0%, rgba(90,255,210,0.88) 40%, rgba(30,190,165,0.65) 100%)",
+    clipPath: "polygon(50% 0%, 100% 28%, 85% 100%, 15% 100%, 0% 28%)",
+    boxShadow: "0 0 12px rgba(80,255,205,0.65), 0 0 22px rgba(80,255,205,0.2)",
+    filter: "brightness(1.08)",
+    animation: "crystalShardPulse 6.5s ease-in-out infinite",
+  },
 
-crystalMid: {
-  position: "absolute",
-  bottom: "0",
-  left: "2px",
-  width: "10px",
-  height: "25px",
-  background: "linear-gradient(165deg, rgba(210,255,245,0.93) 0%, rgba(110,245,220,0.78) 48%, rgba(50,195,175,0.5) 100%)",
-  clipPath: "polygon(50% 0%, 100% 30%, 82% 100%, 18% 100%, 0% 30%)",
-  boxShadow: "0 0 9px rgba(100,245,215,0.55)",
-  animation: "crystalShardPulse 6.5s ease-in-out infinite",
-},
+  crystalMid: {
+    position: "absolute",
+    bottom: "0",
+    left: "2px",
+    width: "10px",
+    height: "25px",
+    background:
+      "linear-gradient(165deg, rgba(210,255,245,0.93) 0%, rgba(110,245,220,0.78) 48%, rgba(50,195,175,0.5) 100%)",
+    clipPath: "polygon(50% 0%, 100% 30%, 82% 100%, 18% 100%, 0% 30%)",
+    boxShadow: "0 0 9px rgba(100,245,215,0.55)",
+    animation: "crystalShardPulse 6.5s ease-in-out infinite",
+  },
 
-crystalSmall: {
-  position: "absolute",
-  bottom: "0",
-  left: "31px",
-  width: "8px",
-  height: "20px",
-  background: "linear-gradient(150deg, rgba(220,255,248,0.9) 0%, rgba(130,250,228,0.72) 52%, rgba(60,200,182,0.45) 100%)",
-  clipPath: "polygon(50% 0%, 100% 32%, 80% 100%, 20% 100%, 0% 32%)",
-  boxShadow: "0 0 7px rgba(110,248,225,0.48)",
-  animation: "crystalShardPulse 6.5s ease-in-out infinite",
-},
+  crystalSmall: {
+    position: "absolute",
+    bottom: "0",
+    left: "31px",
+    width: "8px",
+    height: "20px",
+    background:
+      "linear-gradient(150deg, rgba(220,255,248,0.9) 0%, rgba(130,250,228,0.72) 52%, rgba(60,200,182,0.45) 100%)",
+    clipPath: "polygon(50% 0%, 100% 32%, 80% 100%, 20% 100%, 0% 32%)",
+    boxShadow: "0 0 7px rgba(110,248,225,0.48)",
+    animation: "crystalShardPulse 6.5s ease-in-out infinite",
+  },
 
-crystalTiny: {
-  position: "absolute",
-  bottom: "0",
-  left: "40px",
-  width: "6px",
-  height: "13px",
-  background: "linear-gradient(160deg, rgba(200,255,245,0.85) 0%, rgba(120,240,218,0.65) 55%, rgba(55,185,168,0.38) 100%)",
-  clipPath: "polygon(50% 0%, 100% 30%, 78% 100%, 22% 100%, 0% 30%)",
-  boxShadow: "0 0 5px rgba(100,238,218,0.4)",
-  animation: "crystalShardPulse 6.5s ease-in-out infinite",
-},
+  crystalTiny: {
+    position: "absolute",
+    bottom: "0",
+    left: "40px",
+    width: "6px",
+    height: "13px",
+    background:
+      "linear-gradient(160deg, rgba(200,255,245,0.85) 0%, rgba(120,240,218,0.65) 55%, rgba(55,185,168,0.38) 100%)",
+    clipPath: "polygon(50% 0%, 100% 30%, 78% 100%, 22% 100%, 0% 30%)",
+    boxShadow: "0 0 5px rgba(100,238,218,0.4)",
+    animation: "crystalShardPulse 6.5s ease-in-out infinite",
+  },
 
   stage: {
     width: "100%",
@@ -1206,7 +1483,7 @@ crystalTiny: {
     border: "1px solid rgba(255,255,255,0.08)",
     boxShadow: "0 0 60px rgba(150,120,255,0.35)",
     background:
-        "radial-gradient(circle at 50% 35%, rgba(140,90,255,0.12), rgba(0,0,0,0) 62%)",
+      "radial-gradient(circle at 50% 35%, rgba(140,90,255,0.12), rgba(0,0,0,0) 62%)",
   },
 
   stageGlow: {
@@ -1219,104 +1496,104 @@ crystalTiny: {
     filter: "blur(0px)",
   },
 
-auroraVeilOne: {
-  position: "absolute",
-  top: "6%",
-  left: "-32%",
-  width: "205%",
-  height: "118px",
-  pointerEvents: "none",
-  zIndex: 0,
-  opacity: 0.82,
-  transform: "rotate(-7deg)",
-  transformOrigin: "center center",
-  background: `
-    linear-gradient(
-      180deg,
-      transparent 0%,
-      rgba(120, 255, 220, 0.08) 8%,
-      rgba(120, 255, 220, 0.26) 24%,
-      rgba(180, 150, 255, 0.28) 46%,
-      rgba(120, 210, 255, 0.18) 66%,
-      rgba(120, 255, 220, 0.06) 84%,
-      transparent 100%
-    ),
-    repeating-linear-gradient(
-      92deg,
-      transparent 0px,
-      rgba(120, 255, 220, 0.00) 14px,
-      rgba(120, 255, 220, 0.05) 28px,
-      rgba(180, 150, 255, 0.07) 46px,
-      rgba(255, 255, 255, 0.025) 62px,
-      rgba(120, 210, 255, 0.045) 82px,
-      rgba(120, 255, 220, 0.00) 108px
-    )
-  `,
-  filter: "blur(2px) brightness(1.06)",
-  animation: "auroraCurtainOne 20s ease-in-out infinite",
-},
+  auroraVeilOne: {
+    position: "absolute",
+    top: "6%",
+    left: "-32%",
+    width: "205%",
+    height: "118px",
+    pointerEvents: "none",
+    zIndex: 0,
+    opacity: 0.82,
+    transform: "rotate(-7deg)",
+    transformOrigin: "center center",
+    background: `
+      linear-gradient(
+        180deg,
+        transparent 0%,
+        rgba(120, 255, 220, 0.08) 8%,
+        rgba(120, 255, 220, 0.26) 24%,
+        rgba(180, 150, 255, 0.28) 46%,
+        rgba(120, 210, 255, 0.18) 66%,
+        rgba(120, 255, 220, 0.06) 84%,
+        transparent 100%
+      ),
+      repeating-linear-gradient(
+        92deg,
+        transparent 0px,
+        rgba(120, 255, 220, 0.00) 14px,
+        rgba(120, 255, 220, 0.05) 28px,
+        rgba(180, 150, 255, 0.07) 46px,
+        rgba(255, 255, 255, 0.025) 62px,
+        rgba(120, 210, 255, 0.045) 82px,
+        rgba(120, 255, 220, 0.00) 108px
+      )
+    `,
+    filter: "blur(2px) brightness(1.06)",
+    animation: "auroraCurtainOne 20s ease-in-out infinite",
+  },
 
-auroraVeilTwo: {
-  position: "absolute",
-  top: "13%",
-  left: "-26%",
-  width: "190%",
-  height: "96px",
-  pointerEvents: "none",
-  zIndex: 0,
-  opacity: 0.62,
-  transform: "rotate(5deg)",
-  transformOrigin: "center center",
-  background: `
-    linear-gradient(
-      180deg,
-      transparent 0%,
-      rgba(255, 170, 230, 0.08) 10%,
-      rgba(160, 220, 255, 0.18) 30%,
-      rgba(120, 255, 220, 0.20) 52%,
-      rgba(180, 150, 255, 0.14) 74%,
-      transparent 100%
-    ),
-    repeating-linear-gradient(
-      88deg,
-      transparent 0px,
-      rgba(255, 255, 255, 0.00) 10px,
-      rgba(255, 255, 255, 0.03) 20px,
-      rgba(180, 150, 255, 0.05) 34px,
-      rgba(120, 255, 220, 0.035) 48px,
-      transparent 64px
-    )
-  `,
-  filter: "blur(2px) brightness(1.04)",
-  animation: "auroraCurtainTwo 24s ease-in-out infinite",
-},
+  auroraVeilTwo: {
+    position: "absolute",
+    top: "13%",
+    left: "-26%",
+    width: "190%",
+    height: "96px",
+    pointerEvents: "none",
+    zIndex: 0,
+    opacity: 0.62,
+    transform: "rotate(5deg)",
+    transformOrigin: "center center",
+    background: `
+      linear-gradient(
+        180deg,
+        transparent 0%,
+        rgba(255, 170, 230, 0.08) 10%,
+        rgba(160, 220, 255, 0.18) 30%,
+        rgba(120, 255, 220, 0.20) 52%,
+        rgba(180, 150, 255, 0.14) 74%,
+        transparent 100%
+      ),
+      repeating-linear-gradient(
+        88deg,
+        transparent 0px,
+        rgba(255, 255, 255, 0.00) 10px,
+        rgba(255, 255, 255, 0.03) 20px,
+        rgba(180, 150, 255, 0.05) 34px,
+        rgba(120, 255, 220, 0.035) 48px,
+        transparent 64px
+      )
+    `,
+    filter: "blur(2px) brightness(1.04)",
+    animation: "auroraCurtainTwo 24s ease-in-out infinite",
+  },
 
-cloudOne: {
-  position: "absolute",
-  top: "4%",
-  left: "-10%",
-  width: "140%",
-  height: "120px",
-  pointerEvents: "none",
-  zIndex: 1,
-  opacity: 0.28,
-  background: `
-    radial-gradient(
-      ellipse at 30% 50%,
-      rgba(255, 255, 255, 0.18) 0%,
-      rgba(255, 255, 255, 0.08) 40%,
-      transparent 70%
-    ),
-    radial-gradient(
-      ellipse at 70% 40%,
-      rgba(200, 220, 255, 0.16) 0%,
-      rgba(200, 220, 255, 0.06) 45%,
-      transparent 75%
-    )
-  `,
-  filter: "blur(18px)",
-  animation: "cloudDriftOne 90s linear infinite",
-},
+  cloudOne: {
+    position: "absolute",
+    top: "4%",
+    left: "-10%",
+    width: "140%",
+    height: "120px",
+    pointerEvents: "none",
+    zIndex: 1,
+    opacity: 0.28,
+    background: `
+      radial-gradient(
+        ellipse at 30% 50%,
+        rgba(255, 255, 255, 0.18) 0%,
+        rgba(255, 255, 255, 0.08) 40%,
+        transparent 70%
+      ),
+      radial-gradient(
+        ellipse at 70% 40%,
+        rgba(200, 220, 255, 0.16) 0%,
+        rgba(200, 220, 255, 0.06) 45%,
+        transparent 75%
+      )
+    `,
+    filter: "blur(18px)",
+    animation: "cloudFloatOne 90s linear infinite",
+  },
 
   cloudTwo: {
     position: "absolute",
