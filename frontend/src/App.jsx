@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "./lib/supabaseClient";
 import NebulaSprite from "./components/NebulaSprite";
 import ufo from "./assets/sprites/ufo.png";
+import TasksTab from "./components/TasksTab";
+import CalendarTab from "./components/CalendarTab";
 
 // ✅ Mobile-safe ID helper (crypto.randomUUID can be unavailable on non-HTTPS)
 const makeId = () =>
@@ -19,6 +21,7 @@ function App() {
   const [authMode, setAuthMode] = useState("sign-in");
   const [authMessage, setAuthMessage] = useState("");
   const [nebulaState, setNebulaState] = useState("idle");
+  const [activeTab, setActiveTab] = useState("chat");
 
   // --- Blink / environment / movement ---
   const [blinkOn, setBlinkOn] = useState(false);
@@ -941,152 +944,198 @@ function App() {
             </div>
           </header>
 
-          <div style={styles.stage}>
-            <div style={styles.auroraVeilOne} />
-            <div style={styles.auroraVeilTwo} />
-            <div style={styles.stageGlow} />
-
-            <div style={styles.cloudOne} />
-            <div style={styles.cloudTwo} />
-            <div style={styles.cloudThree} />
-            <div style={styles.sparklesBack} />
-            <div style={styles.sparklesMid} />
-            <div style={styles.sparklesFront} />
-
-            {shootingStarData && (
-              <div
-                style={{
-                  ...styles.shootingStar,
-                  ...(shootingStarData.top ? { top: shootingStarData.top } : {}),
-                  ...(shootingStarData.left ? { left: shootingStarData.left } : {}),
-                  ...(shootingStarData.right ? { right: shootingStarData.right } : {}),
-                  ...(shootingStarData.bottom ? { bottom: shootingStarData.bottom } : {}),
-                  ...(shootingStarData.key === "downRight"
-                    ? styles.shootingStarDownRight
-                    : {}),
-                  ...(shootingStarData.key === "downLeft"
-                    ? styles.shootingStarDownLeft
-                    : {}),
-                  ...(shootingStarData.key === "upRight"
-                    ? styles.shootingStarUpRight
-                    : {}),
-                  ...(shootingStarData.key === "upLeft"
-                    ? styles.shootingStarUpLeft
-                    : {}),
-                }}
-              />
-            )}
-
-            {ufoVisible && (
-              <img
-                src={ufo}
-                alt=""
-                style={{
-                  ...styles.ufo,
-                  ...(ufoDirection === "left"
-                    ? styles.ufoLeftToRight
-                    : styles.ufoRightToLeft),
-                }}
-              />
-            )}
-
-            <div style={styles.planetGround} />
-
-            <div style={styles.mushroomLeft}>
-              <div style={styles.mushroomCapPink} />
-              <div style={styles.mushroomStemPink} />
-            </div>
-
-            <div style={styles.mushroomRight}>
-              <div style={styles.mushroomCapBlue} />
-              <div style={styles.mushroomStemBlue} />
-            </div>
-
-            <div style={styles.crystalFieldGlow} />
-
-            <div style={styles.crystalCluster}>
-              <div style={styles.crystalTall} />
-              <div style={styles.crystalMid} />
-              <div style={styles.crystalSmall} />
-              <div style={styles.crystalTiny} />
-            </div>
-
-            <NebulaSprite
-              blinkOn={blinkOn}
-              behavior={spriteBehavior}
-              x={nebulaX}
-              walkDirection={walkDirection}
-              bounceOn={bounceOn}
-              nebulaState={nebulaState}
-            />
-          </div>
-
-          <div ref={listRef} style={styles.chatList}>
-            {messages.map((m) => (
-              <div
-                key={m.id}
-                style={{
-                  ...styles.row,
-                  justifyContent:
-                    m.role === "user" ? "flex-end" : "flex-start",
-                }}
-              >
-                <div
-                  style={{
-                    ...styles.bubble,
-                    ...(m.role === "user"
-                      ? styles.userBubble
-                      : styles.nebulaBubble),
-                  }}
-                >
-                  {m.content}
-                </div>
-              </div>
-            ))}
-
-            {loading && (
-              <div style={{ ...styles.row, justifyContent: "flex-start" }}>
-                <div
-                  style={{
-                    ...styles.bubble,
-                    ...styles.nebulaBubble,
-                    opacity: 0.85,
-                  }}
-                >
-                  Thinking…
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div style={styles.composer}>
-            <textarea
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              onKeyDown={onKeyDown}
-              placeholder={
-                session
-                  ? "Say something to Nebula…"
-                  : "Sign in to chat with Nebula…"
-              }
-              style={styles.input}
-              rows={2}
-              disabled={!session}
-            />
-
+          <div style={styles.tabBar}>
             <button
-              onClick={sendMessage}
-              disabled={!canSend}
+              type="button"
+              onClick={() => setActiveTab("chat")}
               style={{
-                ...styles.button,
-                opacity: canSend ? 1 : 0.6,
+                ...styles.tabButton,
+                ...(activeTab === "chat" ? styles.tabButtonActive : {}),
               }}
             >
-              {loading ? "…" : "Send"}
+              Chat
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab("tasks")}
+              style={{
+                ...styles.tabButton,
+                ...(activeTab === "tasks" ? styles.tabButtonActive : {}),
+              }}
+            >
+              Tasks
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab("calendar")}
+              style={{
+                ...styles.tabButton,
+                ...(activeTab === "calendar" ? styles.tabButtonActive : {}),
+              }}
+            >
+              Calendar
             </button>
           </div>
 
-          <div style={styles.hint}>Enter = send • Shift+Enter = new line</div>
+          {activeTab === "chat" && (
+            <>
+              <div style={styles.stage}>
+                <div style={styles.auroraVeilOne} />
+                <div style={styles.auroraVeilTwo} />
+                <div style={styles.stageGlow} />
+
+                <div style={styles.cloudOne} />
+                <div style={styles.cloudTwo} />
+                <div style={styles.cloudThree} />
+                <div style={styles.sparklesBack} />
+                <div style={styles.sparklesMid} />
+                <div style={styles.sparklesFront} />
+
+                {shootingStarData && (
+                  <div
+                    style={{
+                      ...styles.shootingStar,
+                      ...(shootingStarData.top ? { top: shootingStarData.top } : {}),
+                      ...(shootingStarData.left ? { left: shootingStarData.left } : {}),
+                      ...(shootingStarData.right
+                        ? { right: shootingStarData.right }
+                        : {}),
+                      ...(shootingStarData.bottom
+                        ? { bottom: shootingStarData.bottom }
+                        : {}),
+                      ...(shootingStarData.key === "downRight"
+                        ? styles.shootingStarDownRight
+                        : {}),
+                      ...(shootingStarData.key === "downLeft"
+                        ? styles.shootingStarDownLeft
+                        : {}),
+                      ...(shootingStarData.key === "upRight"
+                        ? styles.shootingStarUpRight
+                        : {}),
+                      ...(shootingStarData.key === "upLeft"
+                        ? styles.shootingStarUpLeft
+                        : {}),
+                    }}
+                  />
+                )}
+
+                {ufoVisible && (
+                  <img
+                    src={ufo}
+                    alt=""
+                    style={{
+                      ...styles.ufo,
+                      ...(ufoDirection === "left"
+                        ? styles.ufoLeftToRight
+                        : styles.ufoRightToLeft),
+                    }}
+                  />
+                )}
+
+                <div style={styles.planetGround} />
+
+                <div style={styles.mushroomLeft}>
+                  <div style={styles.mushroomCapPink} />
+                  <div style={styles.mushroomStemPink} />
+                </div>
+
+                <div style={styles.mushroomRight}>
+                  <div style={styles.mushroomCapBlue} />
+                  <div style={styles.mushroomStemBlue} />
+                </div>
+
+                <div style={styles.crystalFieldGlow} />
+
+                <div style={styles.crystalCluster}>
+                  <div style={styles.crystalTall} />
+                  <div style={styles.crystalMid} />
+                  <div style={styles.crystalSmall} />
+                  <div style={styles.crystalTiny} />
+                </div>
+
+                <NebulaSprite
+                  blinkOn={blinkOn}
+                  behavior={spriteBehavior}
+                  x={nebulaX}
+                  walkDirection={walkDirection}
+                  bounceOn={bounceOn}
+                  nebulaState={nebulaState}
+                />
+              </div>
+
+              <div ref={listRef} style={styles.chatList}>
+                {messages.map((m) => (
+                  <div
+                    key={m.id}
+                    style={{
+                      ...styles.row,
+                      justifyContent:
+                        m.role === "user" ? "flex-end" : "flex-start",
+                    }}
+                  >
+                    <div
+                      style={{
+                        ...styles.bubble,
+                        ...(m.role === "user"
+                          ? styles.userBubble
+                          : styles.nebulaBubble),
+                      }}
+                    >
+                      {m.content}
+                    </div>
+                  </div>
+                ))}
+
+                {loading && (
+                  <div style={{ ...styles.row, justifyContent: "flex-start" }}>
+                    <div
+                      style={{
+                        ...styles.bubble,
+                        ...styles.nebulaBubble,
+                        opacity: 0.85,
+                      }}
+                    >
+                      Thinking…
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div style={styles.composer}>
+                <textarea
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  onKeyDown={onKeyDown}
+                  placeholder={
+                    session
+                      ? "Say something to Nebula…"
+                      : "Sign in to chat with Nebula…"
+                  }
+                  style={styles.input}
+                  rows={2}
+                  disabled={!session}
+                />
+
+                <button
+                  onClick={sendMessage}
+                  disabled={!canSend}
+                  style={{
+                    ...styles.button,
+                    opacity: canSend ? 1 : 0.6,
+                  }}
+                >
+                  {loading ? "…" : "Send"}
+                </button>
+              </div>
+
+              <div style={styles.hint}>Enter = send • Shift+Enter = new line</div>
+            </>
+          )}
+
+          {activeTab === "tasks" && <TasksTab />}
+          {activeTab === "calendar" && <CalendarTab />}
         </div>
       </div>
     </div>
@@ -1136,6 +1185,28 @@ const styles = {
 
   header: {
     padding: "8px 4px",
+  },
+
+  tabBar: {
+    display: "flex",
+    gap: 8,
+    margin: "4px 0 8px",
+  },
+
+  tabButton: {
+    flex: 1,
+    borderRadius: 12,
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(255,255,255,0.04)",
+    color: "#e9eefc",
+    padding: "10px 12px",
+    cursor: "pointer",
+    fontSize: 13,
+  },
+
+  tabButtonActive: {
+    background: "rgba(140, 190, 255, 0.16)",
+    border: "1px solid rgba(140, 190, 255, 0.28)",
   },
 
   headerRow: {
@@ -1292,6 +1363,22 @@ const styles = {
     transform: "rotate(32deg)",
     transformOrigin: "left center",
     animation: "shootingStar 1.2s ease-out forwards",
+  },
+
+  shootingStarDownRight: {
+    animation: "shootingStarDownRight 1.2s ease-out forwards",
+  },
+
+  shootingStarDownLeft: {
+    animation: "shootingStarDownLeft 1.2s ease-out forwards",
+  },
+
+  shootingStarUpRight: {
+    animation: "shootingStarUpRight 1.2s ease-out forwards",
+  },
+
+  shootingStarUpLeft: {
+    animation: "shootingStarUpLeft 1.2s ease-out forwards",
   },
 
   ufo: {
