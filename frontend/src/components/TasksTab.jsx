@@ -2,6 +2,18 @@ import { useEffect, useMemo, useState } from "react";
 
 const STORAGE_KEY = "nebula_tasks_v1";
 
+  const TASK_COMPLETION_LINES = [
+  "Nice.",
+  "That moved things forward.",
+  "One less thing sitting on you.",
+  "That counts.",
+  "You did that.",
+];
+
+function pickRandomLine(lines) {
+  return lines[Math.floor(Math.random() * lines.length)];
+}
+
 export default function TasksTab() {
   const [tasks, setTasks] = useState(() => {
     try {
@@ -64,11 +76,11 @@ export default function TasksTab() {
     );
 
     if (justCompleted) {
-      setEncouragement("Nice work.");
-      window.setTimeout(() => {
-        setEncouragement("");
-      }, 1400);
-    }
+  setEncouragement(pickRandomLine(TASK_COMPLETION_LINES));
+  window.setTimeout(() => {
+    setEncouragement("");
+  }, 1400);
+}
   }
 
   function handleDeleteTask(taskId) {
