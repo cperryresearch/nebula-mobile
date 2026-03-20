@@ -1034,6 +1034,75 @@ function App() {
                   />
                 )}
 
+<svg
+  viewBox="0 0 320 320"
+  preserveAspectRatio="none"
+  style={{
+    position: "absolute",
+    inset: 0,
+    width: "100%",
+    height: "100%",
+    zIndex: 0,
+    pointerEvents: "none",
+  }}
+>
+  <defs>
+    <filter id="hillGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" />
+    </filter>
+  </defs>
+
+{/* --- FAR HILL (tucked cleanly behind mid hill) --- */}
+<path
+  d="M 168 232
+     C 188 226, 206 220, 224 214
+     C 246 204, 272 190, 298 180
+     C 316 174, 330 172, 340 174
+     L 340 320
+     L 168 320
+     Z"
+  fill="#8b94ff"
+  opacity="0.46"
+/>
+
+{/* --- BACK HILL (left-heavy, slopes right) --- */}
+<path
+  d="M -20 210
+     C 20 185, 90 190, 130 205
+     C 170 220, 220 228, 340 240
+     L 340 320
+     L -20 320
+     Z"
+  fill="#5f6cf0"
+  opacity="0.55"
+/>
+
+  {/* --- FRONT HILL (existing) --- */}
+  <path
+    d="M -20 248
+       C 28 232, 82 242, 126 236
+       C 170 230, 204 206, 246 204
+       C 284 202, 314 208, 340 216
+       L 340 320
+       L -20 320
+       Z"
+    fill="#9486ff"
+  />
+
+  {/* --- GLOW CREST --- */}
+  <path
+    d="M -20 248
+       C 28 232, 82 242, 126 236
+       C 170 230, 204 206, 246 204
+       C 284 202, 314 208, 340 216"
+    fill="none"
+    stroke="rgba(210,220,255,0.45)"
+    strokeWidth="10"
+    strokeLinecap="round"
+    filter="url(#hillGlow)"
+  />
+</svg>
+
                 <div style={styles.planetGround} />
 
                 <div style={styles.mushroomLeft}>
@@ -1429,9 +1498,9 @@ const styles = {
     position: "absolute",
     transformOrigin: "bottom center",
     animation: "mushroomSwayLeft 4.2s ease-in-out infinite",
-    bottom: "34px",
-    left: "21%",
-    width: "24px",
+    bottom: "48px",
+    left: "24%",
+    width: "16px",
     height: "34px",
     display: "flex",
     flexDirection: "column",
@@ -1444,8 +1513,8 @@ const styles = {
     position: "absolute",
     transformOrigin: "bottom center",
     animation: "mushroomSwayRight 4.8s ease-in-out infinite",
-    bottom: "33px",
-    right: "19%",
+    bottom: "40px",
+    right: "12%",
     width: "22px",
     height: "32px",
     display: "flex",
@@ -1497,8 +1566,8 @@ const styles = {
 
   crystalCluster: {
     position: "absolute",
-    bottom: "14px",
-    right: "44px",
+    bottom: "18px",
+    right: "70px",
     width: "52px",
     height: "52px",
     pointerEvents: "none",
@@ -1555,6 +1624,30 @@ const styles = {
     clipPath: "polygon(50% 0%, 100% 30%, 78% 100%, 22% 100%, 0% 30%)",
     boxShadow: "0 0 5px rgba(100,238,218,0.4)",
     animation: "crystalShardPulse 6.5s ease-in-out infinite",
+  },
+
+  backgroundHill: {
+    position: "absolute",
+    bottom: "34px",
+    left: "-18%",
+    width: "136%",
+    height: "118px",
+    borderRadius: "50%",
+    background: "linear-gradient(to top, #6d5ee8 0%, #8c7cf4 55%, #a99cff 100%)",
+    zIndex: 0,
+  },
+
+  backgroundHillGlow: {
+    position: "absolute",
+    bottom: "72px",
+    left: "-10%",
+    width: "120%",
+    height: "54px",
+    borderRadius: "50%",
+    background: "rgba(190, 210, 255, 0.22)",
+    filter: "blur(14px)",
+    zIndex: 0,
+    pointerEvents: "none",
   },
 
   stage: {
